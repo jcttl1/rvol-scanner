@@ -328,7 +328,7 @@ getSignalColor(float spike) =>
     spike >= 8.0 ? colExt : spike >= 5.0 ? colVHi : spike >= 3.0 ? colHi : spike >= 2.0 ? colElev : spike >= 1.5 ? colMod : color.gray
 
 getSignalBg(float spike) =>
-    spike >= 8.0 ? color.new(colExt,80) : spike >= 5.0 ? color.new(colVHi,82) : spike >= 3.0 ? color.new(colHi,85) : spike >= 2.0 ? color.new(colElev,87) : spike >= 1.5 ? color.new(colMod,90) : color.new(color.gray,95)
+    spike >= 8.0 ? color.new(colExt,75) : spike >= 5.0 ? color.new(colVHi,78) : spike >= 3.0 ? color.new(colHi,80) : spike >= 2.0 ? color.new(colElev,83) : spike >= 1.5 ? color.new(colMod,85) : color.new(color.white,0)
 
 getSignalLabel(float spike) =>
     spike >= 8.0 ? "EXTREME" : spike >= 5.0 ? "VERY HIGH" : spike >= 3.0 ? "HIGH" : spike >= 2.0 ? "ELEVATED" : spike >= 1.5 ? "MODERATE" : "—"
@@ -372,8 +372,8 @@ pad(string txt) =>
 
 if barstate.islast
     // --- Header ---
-    color hdrBg  = color.new(#1a1d2b, 0)
-    color hdrTxt = color.new(#8890a5, 0)
+    color hdrBg  = color.new(#e0e0e0, 0)
+    color hdrTxt = color.new(#555555, 0)
 
     int col = 0
     if showRank
@@ -412,24 +412,26 @@ if barstate.islast
         string sigLbl  = getSignalLabel(spike)
         color  chgCol  = chg >= 0 ? color.new(#00c853,0) : color.new(#ff1744,0)
         string chgSign = chg >= 0 ? "+" : ""
-        color  rowBg   = color.new(#131620, 0)
+        color  rowBg   = color.new(#ffffff, 0)
         color  cellBg  = spike >= 1.5 ? bgCol : rowBg
+        color  txtMain = color.new(#1a1a1a, 0)
+        color  txtDim  = color.new(#888888, 0)
 
         int c = 0
         if showRank
-            table.cell(scannerTbl, c, row, pad(str.tostring(rowNum+1)),                             text_color=color.new(#555e70,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+            table.cell(scannerTbl, c, row, pad(str.tostring(rowNum+1)),                             text_color=txtDim,  bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
             c += 1
-        table.cell(scannerTbl, c, row, pad(name),                                                   text_color=color.new(#dfe2ea,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_left)
+        table.cell(scannerTbl, c, row, pad(name),                                                   text_color=txtMain, bgcolor=cellBg, text_size=txtSize, text_halign=text.align_left)
         c += 1
-        table.cell(scannerTbl, c, row, pad(str.tostring(spike,"#.#")+"x"),                          text_color=sigCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+        table.cell(scannerTbl, c, row, pad(str.tostring(spike,"#.#")+"x"),                          text_color=sigCol,  bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
         c += 1
-        table.cell(scannerTbl, c, row, pad(sigLbl),                                                 text_color=sigCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+        table.cell(scannerTbl, c, row, pad(sigLbl),                                                 text_color=sigCol,  bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
         c += 1
         if showPrice
-            table.cell(scannerTbl, c, row, pad("$"+str.tostring(price,"#.##")),                     text_color=color.new(#dfe2ea,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
+            table.cell(scannerTbl, c, row, pad("$"+str.tostring(price,"#.##")),                     text_color=txtMain, bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
             c += 1
         if showChg
-            table.cell(scannerTbl, c, row, pad(chgSign+str.tostring(chg,"#.##")+"%"),               text_color=chgCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
+            table.cell(scannerTbl, c, row, pad(chgSign+str.tostring(chg,"#.##")+"%"),               text_color=chgCol,  bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
 
         rowNum += 1
 
