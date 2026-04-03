@@ -6,6 +6,7 @@
 // Table cells light up with colored signals by spike intensity.
 // Continuously sorted — most intense spikes always at the top.
 // 7 preset ticker lists (6 stock + 1 crypto) via dropdown selector.
+// Custom symbol mode: override any/all slots with your own tickers.
 // Add the indicator multiple times with different lists to scan 280 stocks
 // and 40 cryptos simultaneously.
 // ============================================================================
@@ -13,19 +14,75 @@
 //@version=6
 indicator("RVOL Scanner", overlay = true, max_bars_back = 500)
 
-// ─── INPUTS ─────────────────────────────────────────────────────────────────
+// ─── INPUTS: GENERAL ────────────────────────────────────────────────────────
 
-string listSel = input.string("Focus / Mega Cap", "Ticker List", options = ["Focus / Mega Cap", "Tech & Growth", "Momentum / Small Cap", "Finance & REITs", "Health & Biotech", "Energy & Industrials", "Crypto"], tooltip = "Select which preset list to scan. Add the indicator multiple times with different lists to scan all simultaneously.")
-int    lookback = input.int(20, "Lookback Bars", minval = 5, maxval = 100, tooltip = "Number of prior bars to average volume over for spike detection.")
-string tblPos   = input.string("Top Right", "Table Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left", "Middle Right", "Middle Left"])
-int    tblRows  = input.int(40, "Max Rows", minval = 5, maxval = 40, tooltip = "Number of rows to display in table.")
-float  alertThr = input.float(3.0, "Alert Threshold", minval = 1.0, step = 0.5, tooltip = "Minimum spike ratio to trigger an alert.")
-bool   showNorm = input.bool(true, "Show Normal (no spike) Tickers", tooltip = "If off, only tickers with RVOL >= 1.5 are shown.")
-color  colExt   = input.color(#ff0040, "Extreme Color")
-color  colVHi   = input.color(#ff6600, "Very High Color")
-color  colHi    = input.color(#ffaa00, "High Color")
-color  colElev  = input.color(#44bbff, "Elevated Color")
-color  colMod   = input.color(#22ddaa, "Moderate Color")
+string listSel  = input.string("Focus / Mega Cap", "Ticker List", options = ["Focus / Mega Cap", "Tech & Growth", "Momentum / Small Cap", "Finance & REITs", "Health & Biotech", "Energy & Industrials", "Crypto"], tooltip = "Select which preset list to scan. Add the indicator multiple times with different lists to scan all simultaneously.", group = "Scanner")
+int    lookback = input.int(20, "Lookback Bars", minval = 5, maxval = 100, tooltip = "Number of prior bars to average volume over for spike detection.", group = "Scanner")
+float  alertThr = input.float(3.0, "Alert Threshold", minval = 1.0, step = 0.5, tooltip = "Minimum spike ratio to trigger the general alert.", group = "Scanner")
+bool   showNorm = input.bool(true, "Show Normal (no spike) Tickers", tooltip = "If off, only tickers with RVOL >= 1.5 are shown.", group = "Scanner")
+
+// ─── INPUTS: ALERTS ─────────────────────────────────────────────────────────
+
+bool   alertGeneral  = input.bool(true,  "Alert: Custom Threshold",   tooltip = "Fire alert when any ticker exceeds your Alert Threshold above.", group = "Alerts")
+bool   alertVeryHigh = input.bool(true,  "Alert: Very High (5x+)",    tooltip = "Fire alert when any ticker hits VERY HIGH volume (5x+ spike). Great for catching catalyst moves early.", group = "Alerts")
+bool   alertExtreme  = input.bool(true,  "Alert: Extreme (8x+)",      tooltip = "Fire alert when any ticker hits EXTREME volume (8x+ spike). Major event — get to this chart fast.", group = "Alerts")
+
+// ─── INPUTS: TABLE APPEARANCE ───────────────────────────────────────────────
+
+string tblPos   = input.string("Top Right", "Table Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left", "Middle Right", "Middle Left"], group = "Table Appearance")
+string textSz   = input.string("Tiny", "Text Size", options = ["Auto", "Tiny", "Small", "Normal", "Large", "Huge"], tooltip = "Font size for all table text.", group = "Table Appearance")
+int    tblRows  = input.int(40, "Max Rows", minval = 1, maxval = 40, tooltip = "Number of rows to display in table.", group = "Table Appearance")
+int    colWidth = input.int(0, "Column Width (0 = auto)", minval = 0, maxval = 20, tooltip = "Fixed character width for columns. 0 uses auto-sizing.", group = "Table Appearance")
+int    tblBorder = input.int(1, "Border Width", minval = 0, maxval = 3, group = "Table Appearance")
+bool   showRank = input.bool(true, "Show Rank Column (#)", group = "Table Appearance")
+bool   showPrice = input.bool(true, "Show Price Column", group = "Table Appearance")
+bool   showChg  = input.bool(true, "Show Change % Column", group = "Table Appearance")
+
+// ─── INPUTS: COLORS ─────────────────────────────────────────────────────────
+
+color  colExt   = input.color(#ff0040, "Extreme (8x+)",   group = "Signal Colors")
+color  colVHi   = input.color(#ff6600, "Very High (5x+)", group = "Signal Colors")
+color  colHi    = input.color(#ffaa00, "High (3x+)",      group = "Signal Colors")
+color  colElev  = input.color(#44bbff, "Elevated (2x+)",  group = "Signal Colors")
+color  colMod   = input.color(#22ddaa, "Moderate (1.5x+)",group = "Signal Colors")
+
+// ─── INPUTS: CUSTOM SYMBOLS ─────────────────────────────────────────────────
+// Set "Use Custom Symbols" to true, then fill in your tickers below.
+// Any slot left blank ("") will use the preset list ticker for that slot.
+// Use TradingView symbol format, e.g. "AAPL", "BINANCE:BTCUSDT", "AMEX:SPY"
+
+bool   useCustom = input.bool(false, "Use Custom Symbols", tooltip = "Enable to override preset tickers with your own symbols below. Blank slots fall back to the preset list.", group = "Custom Symbols")
+string cu01 = input.symbol("", "Custom  1", group = "Custom Symbols"), string cu02 = input.symbol("", "Custom  2", group = "Custom Symbols")
+string cu03 = input.symbol("", "Custom  3", group = "Custom Symbols"), string cu04 = input.symbol("", "Custom  4", group = "Custom Symbols")
+string cu05 = input.symbol("", "Custom  5", group = "Custom Symbols"), string cu06 = input.symbol("", "Custom  6", group = "Custom Symbols")
+string cu07 = input.symbol("", "Custom  7", group = "Custom Symbols"), string cu08 = input.symbol("", "Custom  8", group = "Custom Symbols")
+string cu09 = input.symbol("", "Custom  9", group = "Custom Symbols"), string cu10 = input.symbol("", "Custom 10", group = "Custom Symbols")
+string cu11 = input.symbol("", "Custom 11", group = "Custom Symbols"), string cu12 = input.symbol("", "Custom 12", group = "Custom Symbols")
+string cu13 = input.symbol("", "Custom 13", group = "Custom Symbols"), string cu14 = input.symbol("", "Custom 14", group = "Custom Symbols")
+string cu15 = input.symbol("", "Custom 15", group = "Custom Symbols"), string cu16 = input.symbol("", "Custom 16", group = "Custom Symbols")
+string cu17 = input.symbol("", "Custom 17", group = "Custom Symbols"), string cu18 = input.symbol("", "Custom 18", group = "Custom Symbols")
+string cu19 = input.symbol("", "Custom 19", group = "Custom Symbols"), string cu20 = input.symbol("", "Custom 20", group = "Custom Symbols")
+string cu21 = input.symbol("", "Custom 21", group = "Custom Symbols"), string cu22 = input.symbol("", "Custom 22", group = "Custom Symbols")
+string cu23 = input.symbol("", "Custom 23", group = "Custom Symbols"), string cu24 = input.symbol("", "Custom 24", group = "Custom Symbols")
+string cu25 = input.symbol("", "Custom 25", group = "Custom Symbols"), string cu26 = input.symbol("", "Custom 26", group = "Custom Symbols")
+string cu27 = input.symbol("", "Custom 27", group = "Custom Symbols"), string cu28 = input.symbol("", "Custom 28", group = "Custom Symbols")
+string cu29 = input.symbol("", "Custom 29", group = "Custom Symbols"), string cu30 = input.symbol("", "Custom 30", group = "Custom Symbols")
+string cu31 = input.symbol("", "Custom 31", group = "Custom Symbols"), string cu32 = input.symbol("", "Custom 32", group = "Custom Symbols")
+string cu33 = input.symbol("", "Custom 33", group = "Custom Symbols"), string cu34 = input.symbol("", "Custom 34", group = "Custom Symbols")
+string cu35 = input.symbol("", "Custom 35", group = "Custom Symbols"), string cu36 = input.symbol("", "Custom 36", group = "Custom Symbols")
+string cu37 = input.symbol("", "Custom 37", group = "Custom Symbols"), string cu38 = input.symbol("", "Custom 38", group = "Custom Symbols")
+string cu39 = input.symbol("", "Custom 39", group = "Custom Symbols"), string cu40 = input.symbol("", "Custom 40", group = "Custom Symbols")
+
+// ─── RESOLVE TEXT SIZE ──────────────────────────────────────────────────────
+
+var string txtSize = switch textSz
+    "Auto"   => size.auto
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    "Huge"   => size.huge
+    => size.tiny
 
 // ─── LIST BOOLEANS ──────────────────────────────────────────────────────────
 
@@ -35,57 +92,97 @@ bool L3 = listSel == "Momentum / Small Cap"
 bool L4 = listSel == "Finance & REITs"
 bool L5 = listSel == "Health & Biotech"
 bool L6 = listSel == "Energy & Industrials"
-bool L7 = listSel == "Crypto"
+// L7 (Crypto) = else case
 
-// ─── SYMBOL ASSIGNMENT (40 tickers per list) ────────────────────────────────
-//  L1 = Focus/Mega   L2 = Tech/Growth   L3 = Momentum/Small   L4 = Finance
-//  L5 = Health/Bio   L6 = Energy/Ind    L7 = Crypto
+// ─── PRESET SYMBOL ASSIGNMENT (40 tickers per list) ─────────────────────────
 
-string s01 = L1?"AAPL" :L2?"AMD"  :L3?"GME"  :L4?"GS"   :L5?"PFE"  :L6?"XOM"  :"BINANCE:BTCUSDT"
-string s02 = L1?"MSFT" :L2?"NFLX" :L3?"AMC"  :L4?"MS"   :L5?"ABT"  :L6?"CVX"  :"BINANCE:ETHUSDT"
-string s03 = L1?"AMZN" :L2?"INTC" :L3?"BB"   :L4?"C"    :L5?"ISRG" :L6?"COP"  :"BINANCE:BNBUSDT"
-string s04 = L1?"NVDA" :L2?"QCOM" :L3?"SOFI" :L4?"WFC"  :L5?"GILD" :L6?"SLB"  :"BINANCE:SOLUSDT"
-string s05 = L1?"GOOGL":L2?"AMAT" :L3?"RIVN" :L4?"SCHW" :L5?"AMGN" :L6?"EOG"  :"BINANCE:XRPUSDT"
-string s06 = L1?"META" :L2?"PANW" :L3?"LCID" :L4?"BLK"  :L5?"BMY"  :L6?"MPC"  :"BINANCE:ADAUSDT"
-string s07 = L1?"TSLA" :L2?"SNPS" :L3?"NIO"  :L4?"AXP"  :L5?"REGN" :L6?"VLO"  :"BINANCE:DOGEUSDT"
-string s08 = L1?"BRK.B":L2?"CDNS" :L3?"MARA" :L4?"USB"  :L5?"VRTX" :L6?"PSX"  :"BINANCE:AVAXUSDT"
-string s09 = L1?"UNH"  :L2?"MRVL" :L3?"RIOT" :L4?"PNC"  :L5?"MRNA" :L6?"OXY"  :"BINANCE:DOTUSDT"
-string s10 = L1?"LLY"  :L2?"KLAC" :L3?"COIN" :L4?"TFC"  :L5?"BIIB" :L6?"DVN"  :"BINANCE:MATICUSDT"
-string s11 = L1?"JPM"  :L2?"LRCX" :L3?"HOOD" :L4?"COF"  :L5?"ILMN" :L6?"HAL"  :"BINANCE:LINKUSDT"
-string s12 = L1?"V"    :L2?"MU"   :L3?"UPST" :L4?"AIG"  :L5?"DXCM" :L6?"FANG" :"BINANCE:SHIBUSDT"
-string s13 = L1?"XOM"  :L2?"NOW"  :L3?"AFRM" :L4?"MET"  :L5?"IDXX" :L6?"FCX"  :"BINANCE:LTCUSDT"
-string s14 = L1?"AVGO" :L2?"SHOP" :L3?"IONQ" :L4?"PRU"  :L5?"ZBH"  :L6?"NEM"  :"BINANCE:UNIUSDT"
-string s15 = L1?"MA"   :L2?"SQ"   :L3?"RKLB" :L4?"ICE"  :L5?"SYK"  :L6?"NUE"  :"BINANCE:ATOMUSDT"
-string s16 = L1?"JNJ"  :L2?"PLTR" :L3?"SMCI" :L4?"CME"  :L5?"BSX"  :L6?"CLF"  :"BINANCE:ETCUSDT"
-string s17 = L1?"PG"   :L2?"CRWD" :L3?"MSTR" :L4?"SPGI" :L5?"MDT"  :L6?"AA"   :"BINANCE:XLMUSDT"
-string s18 = L1?"HD"   :L2?"DDOG" :L3?"LUNR" :L4?"MCO"  :L5?"EW"   :L6?"X"    :"BINANCE:NEARUSDT"
-string s19 = L1?"COST" :L2?"NET"  :L3?"JOBY" :L4?"FIS"  :L5?"BDX"  :L6?"GOLD" :"BINANCE:APTUSDT"
-string s20 = L1?"ABBV" :L2?"SNOW" :L3?"CIFR" :L4?"PYPL" :L5?"A"    :L6?"MP"   :"BINANCE:ARBUSDT"
-string s21 = L1?"WMT"  :L2?"ZS"   :L3?"CLSK" :L4?"MA"   :L5?"ALGN" :L6?"CAT"  :"BINANCE:OPUSDT"
-string s22 = L1?"BAC"  :L2?"TEAM" :L3?"HIMS" :L4?"V"    :L5?"HOLX" :L6?"DE"   :"BINANCE:FILUSDT"
-string s23 = L1?"KO"   :L2?"HUBS" :L3?"OPEN" :L4?"SYF"  :L5?"TECH" :L6?"HON"  :"BINANCE:AAVEUSDT"
-string s24 = L1?"PEP"  :L2?"WDAY" :L3?"CLOV" :L4?"DFS"  :L5?"PODD" :L6?"GE"   :"BINANCE:MKRUSDT"
-string s25 = L1?"MRK"  :L2?"FTNT" :L3?"BYND" :L4?"AMT"  :L5?"EXAS" :L6?"UPS"  :"BINANCE:GRTUSDT"
-string s26 = L1?"TMO"  :L2?"TTD"  :L3?"PLUG" :L4?"PLD"  :L5?"RARE" :L6?"UNP"  :"BINANCE:INJUSDT"
-string s27 = L1?"ORCL" :L2?"DASH" :L3?"FCEL" :L4?"CCI"  :L5?"NBIX" :L6?"LMT"  :"BINANCE:FETUSDT"
-string s28 = L1?"CRM"  :L2?"ROKU" :L3?"LAZR" :L4?"EQIX" :L5?"INCY" :L6?"NOC"  :"BINANCE:RNDRUSDT"
-string s29 = L1?"CSCO" :L2?"U"    :L3?"GOEV" :L4?"O"    :L5?"ALNY" :L6?"BA"   :"BINANCE:IMXUSDT"
-string s30 = L1?"ACN"  :L2?"PATH" :L3?"QS"   :L4?"SPG"  :L5?"SRPT" :L6?"GD"   :"BINANCE:SUIUSDT"
-string s31 = L1?"MCD"  :L2?"BILL" :L3?"DNA"  :L4?"PSA"  :L5?"PCVX" :L6?"TDG"  :"BINANCE:SEIUSDT"
-string s32 = L1?"NKE"  :L2?"MDB"  :L3?"PSNY" :L4?"DLR"  :L5?"BMRN" :L6?"ITW"  :"BINANCE:TIAUSDT"
-string s33 = L1?"LIN"  :L2?"OKTA" :L3?"NKLA" :L4?"WELL" :L5?"CRSP" :L6?"EMR"  :"BINANCE:JUPUSDT"
-string s34 = L1?"DHR"  :L2?"ESTC" :L3?"VLD"  :L4?"AVB"  :L5?"BEAM" :L6?"ETN"  :"BINANCE:STXUSDT"
-string s35 = L1?"TXN"  :L2?"CFLT" :L3?"ASTS" :L4?"EQR"  :L5?"NTLA" :L6?"ROK"  :"BINANCE:PENDLEUSDT"
-string s36 = L1?"ADBE" :L2?"DOCN" :L3?"XPEV" :L4?"VTR"  :L5?"EDIT" :L6?"CARR" :"BINANCE:ENAUSDT"
-string s37 = L1?"PM"   :L2?"GTLB" :L3?"LI"   :L4?"ARE"  :L5?"IONS" :L6?"OTIS" :"BINANCE:WLDUSDT"
-string s38 = L1?"NEE"  :L2?"MNDY" :L3?"FFIE" :L4?"MAA"  :L5?"ARWR" :L6?"IR"   :"BINANCE:ONDOUSDT"
-string s39 = L1?"RTX"  :L2?"GLBE" :L3?"MULN" :L4?"UDR"  :L5?"FATE" :L6?"AME"  :"BINANCE:PEPEUSDT"
-string s40 = L1?"LOW"  :L2?"S"    :L3?"WULF" :L4?"PEAK" :L5?"SGEN" :L6?"GNRC" :"BINANCE:WUSDT"
+string p01 = L1?"AAPL" :L2?"AMD"  :L3?"GME"  :L4?"GS"   :L5?"PFE"  :L6?"XOM"  :"BINANCE:BTCUSDT"
+string p02 = L1?"MSFT" :L2?"NFLX" :L3?"AMC"  :L4?"MS"   :L5?"ABT"  :L6?"CVX"  :"BINANCE:ETHUSDT"
+string p03 = L1?"AMZN" :L2?"INTC" :L3?"BB"   :L4?"C"    :L5?"ISRG" :L6?"COP"  :"BINANCE:BNBUSDT"
+string p04 = L1?"NVDA" :L2?"QCOM" :L3?"SOFI" :L4?"WFC"  :L5?"GILD" :L6?"SLB"  :"BINANCE:SOLUSDT"
+string p05 = L1?"GOOGL":L2?"AMAT" :L3?"RIVN" :L4?"SCHW" :L5?"AMGN" :L6?"EOG"  :"BINANCE:XRPUSDT"
+string p06 = L1?"META" :L2?"PANW" :L3?"LCID" :L4?"BLK"  :L5?"BMY"  :L6?"MPC"  :"BINANCE:ADAUSDT"
+string p07 = L1?"TSLA" :L2?"SNPS" :L3?"NIO"  :L4?"AXP"  :L5?"REGN" :L6?"VLO"  :"BINANCE:DOGEUSDT"
+string p08 = L1?"BRK.B":L2?"CDNS" :L3?"MARA" :L4?"USB"  :L5?"VRTX" :L6?"PSX"  :"BINANCE:AVAXUSDT"
+string p09 = L1?"UNH"  :L2?"MRVL" :L3?"RIOT" :L4?"PNC"  :L5?"MRNA" :L6?"OXY"  :"BINANCE:DOTUSDT"
+string p10 = L1?"LLY"  :L2?"KLAC" :L3?"COIN" :L4?"TFC"  :L5?"BIIB" :L6?"DVN"  :"BINANCE:MATICUSDT"
+string p11 = L1?"JPM"  :L2?"LRCX" :L3?"HOOD" :L4?"COF"  :L5?"ILMN" :L6?"HAL"  :"BINANCE:LINKUSDT"
+string p12 = L1?"V"    :L2?"MU"   :L3?"UPST" :L4?"AIG"  :L5?"DXCM" :L6?"FANG" :"BINANCE:SHIBUSDT"
+string p13 = L1?"XOM"  :L2?"NOW"  :L3?"AFRM" :L4?"MET"  :L5?"IDXX" :L6?"FCX"  :"BINANCE:LTCUSDT"
+string p14 = L1?"AVGO" :L2?"SHOP" :L3?"IONQ" :L4?"PRU"  :L5?"ZBH"  :L6?"NEM"  :"BINANCE:UNIUSDT"
+string p15 = L1?"MA"   :L2?"SQ"   :L3?"RKLB" :L4?"ICE"  :L5?"SYK"  :L6?"NUE"  :"BINANCE:ATOMUSDT"
+string p16 = L1?"JNJ"  :L2?"PLTR" :L3?"SMCI" :L4?"CME"  :L5?"BSX"  :L6?"CLF"  :"BINANCE:ETCUSDT"
+string p17 = L1?"PG"   :L2?"CRWD" :L3?"MSTR" :L4?"SPGI" :L5?"MDT"  :L6?"AA"   :"BINANCE:XLMUSDT"
+string p18 = L1?"HD"   :L2?"DDOG" :L3?"LUNR" :L4?"MCO"  :L5?"EW"   :L6?"X"    :"BINANCE:NEARUSDT"
+string p19 = L1?"COST" :L2?"NET"  :L3?"JOBY" :L4?"FIS"  :L5?"BDX"  :L6?"GOLD" :"BINANCE:APTUSDT"
+string p20 = L1?"ABBV" :L2?"SNOW" :L3?"CIFR" :L4?"PYPL" :L5?"A"    :L6?"MP"   :"BINANCE:ARBUSDT"
+string p21 = L1?"WMT"  :L2?"ZS"   :L3?"CLSK" :L4?"MA"   :L5?"ALGN" :L6?"CAT"  :"BINANCE:OPUSDT"
+string p22 = L1?"BAC"  :L2?"TEAM" :L3?"HIMS" :L4?"V"    :L5?"HOLX" :L6?"DE"   :"BINANCE:FILUSDT"
+string p23 = L1?"KO"   :L2?"HUBS" :L3?"OPEN" :L4?"SYF"  :L5?"TECH" :L6?"HON"  :"BINANCE:AAVEUSDT"
+string p24 = L1?"PEP"  :L2?"WDAY" :L3?"CLOV" :L4?"DFS"  :L5?"PODD" :L6?"GE"   :"BINANCE:MKRUSDT"
+string p25 = L1?"MRK"  :L2?"FTNT" :L3?"BYND" :L4?"AMT"  :L5?"EXAS" :L6?"UPS"  :"BINANCE:GRTUSDT"
+string p26 = L1?"TMO"  :L2?"TTD"  :L3?"PLUG" :L4?"PLD"  :L5?"RARE" :L6?"UNP"  :"BINANCE:INJUSDT"
+string p27 = L1?"ORCL" :L2?"DASH" :L3?"FCEL" :L4?"CCI"  :L5?"NBIX" :L6?"LMT"  :"BINANCE:FETUSDT"
+string p28 = L1?"CRM"  :L2?"ROKU" :L3?"LAZR" :L4?"EQIX" :L5?"INCY" :L6?"NOC"  :"BINANCE:RNDRUSDT"
+string p29 = L1?"CSCO" :L2?"U"    :L3?"GOEV" :L4?"O"    :L5?"ALNY" :L6?"BA"   :"BINANCE:IMXUSDT"
+string p30 = L1?"ACN"  :L2?"PATH" :L3?"QS"   :L4?"SPG"  :L5?"SRPT" :L6?"GD"   :"BINANCE:SUIUSDT"
+string p31 = L1?"MCD"  :L2?"BILL" :L3?"DNA"  :L4?"PSA"  :L5?"PCVX" :L6?"TDG"  :"BINANCE:SEIUSDT"
+string p32 = L1?"NKE"  :L2?"MDB"  :L3?"PSNY" :L4?"DLR"  :L5?"BMRN" :L6?"ITW"  :"BINANCE:TIAUSDT"
+string p33 = L1?"LIN"  :L2?"OKTA" :L3?"NKLA" :L4?"WELL" :L5?"CRSP" :L6?"EMR"  :"BINANCE:JUPUSDT"
+string p34 = L1?"DHR"  :L2?"ESTC" :L3?"VLD"  :L4?"AVB"  :L5?"BEAM" :L6?"ETN"  :"BINANCE:STXUSDT"
+string p35 = L1?"TXN"  :L2?"CFLT" :L3?"ASTS" :L4?"EQR"  :L5?"NTLA" :L6?"ROK"  :"BINANCE:PENDLEUSDT"
+string p36 = L1?"ADBE" :L2?"DOCN" :L3?"XPEV" :L4?"VTR"  :L5?"EDIT" :L6?"CARR" :"BINANCE:ENAUSDT"
+string p37 = L1?"PM"   :L2?"GTLB" :L3?"LI"   :L4?"ARE"  :L5?"IONS" :L6?"OTIS" :"BINANCE:WLDUSDT"
+string p38 = L1?"NEE"  :L2?"MNDY" :L3?"FFIE" :L4?"MAA"  :L5?"ARWR" :L6?"IR"   :"BINANCE:ONDOUSDT"
+string p39 = L1?"RTX"  :L2?"GLBE" :L3?"MULN" :L4?"UDR"  :L5?"FATE" :L6?"AME"  :"BINANCE:PEPEUSDT"
+string p40 = L1?"LOW"  :L2?"S"    :L3?"WULF" :L4?"PEAK" :L5?"SGEN" :L6?"GNRC" :"BINANCE:WUSDT"
+
+// ─── MERGE: custom overrides preset (blank custom = use preset) ─────────────
+
+string s01 = useCustom and cu01 != "" ? cu01 : p01
+string s02 = useCustom and cu02 != "" ? cu02 : p02
+string s03 = useCustom and cu03 != "" ? cu03 : p03
+string s04 = useCustom and cu04 != "" ? cu04 : p04
+string s05 = useCustom and cu05 != "" ? cu05 : p05
+string s06 = useCustom and cu06 != "" ? cu06 : p06
+string s07 = useCustom and cu07 != "" ? cu07 : p07
+string s08 = useCustom and cu08 != "" ? cu08 : p08
+string s09 = useCustom and cu09 != "" ? cu09 : p09
+string s10 = useCustom and cu10 != "" ? cu10 : p10
+string s11 = useCustom and cu11 != "" ? cu11 : p11
+string s12 = useCustom and cu12 != "" ? cu12 : p12
+string s13 = useCustom and cu13 != "" ? cu13 : p13
+string s14 = useCustom and cu14 != "" ? cu14 : p14
+string s15 = useCustom and cu15 != "" ? cu15 : p15
+string s16 = useCustom and cu16 != "" ? cu16 : p16
+string s17 = useCustom and cu17 != "" ? cu17 : p17
+string s18 = useCustom and cu18 != "" ? cu18 : p18
+string s19 = useCustom and cu19 != "" ? cu19 : p19
+string s20 = useCustom and cu20 != "" ? cu20 : p20
+string s21 = useCustom and cu21 != "" ? cu21 : p21
+string s22 = useCustom and cu22 != "" ? cu22 : p22
+string s23 = useCustom and cu23 != "" ? cu23 : p23
+string s24 = useCustom and cu24 != "" ? cu24 : p24
+string s25 = useCustom and cu25 != "" ? cu25 : p25
+string s26 = useCustom and cu26 != "" ? cu26 : p26
+string s27 = useCustom and cu27 != "" ? cu27 : p27
+string s28 = useCustom and cu28 != "" ? cu28 : p28
+string s29 = useCustom and cu29 != "" ? cu29 : p29
+string s30 = useCustom and cu30 != "" ? cu30 : p30
+string s31 = useCustom and cu31 != "" ? cu31 : p31
+string s32 = useCustom and cu32 != "" ? cu32 : p32
+string s33 = useCustom and cu33 != "" ? cu33 : p33
+string s34 = useCustom and cu34 != "" ? cu34 : p34
+string s35 = useCustom and cu35 != "" ? cu35 : p35
+string s36 = useCustom and cu36 != "" ? cu36 : p36
+string s37 = useCustom and cu37 != "" ? cu37 : p37
+string s38 = useCustom and cu38 != "" ? cu38 : p38
+string s39 = useCustom and cu39 != "" ? cu39 : p39
+string s40 = useCustom and cu40 != "" ? cu40 : p40
 
 // ─── DISPLAY NAMES (short ticker for table) ─────────────────────────────────
 
 getName(string sym) =>
-    // Strip exchange prefix for display
     string result = sym
     if str.contains(sym, ":")
         result := str.replace_all(str.substring(sym, str.pos(sym, ":") + 1), "USDT", "")
@@ -163,60 +260,57 @@ var array<float>  chgArr   = array.new_float(SIZE, 0.0)
 var array<string> nameArr  = array.new_string(SIZE, "")
 var array<int>    idxArr   = array.new_int(SIZE, 0)
 
-// Fill arrays each bar
-array.set(spikeArr, 0,  sr01), array.set(spikeArr, 1,  sr02), array.set(spikeArr, 2,  sr03), array.set(spikeArr, 3,  sr04)
-array.set(spikeArr, 4,  sr05), array.set(spikeArr, 5,  sr06), array.set(spikeArr, 6,  sr07), array.set(spikeArr, 7,  sr08)
-array.set(spikeArr, 8,  sr09), array.set(spikeArr, 9,  sr10), array.set(spikeArr, 10, sr11), array.set(spikeArr, 11, sr12)
-array.set(spikeArr, 12, sr13), array.set(spikeArr, 13, sr14), array.set(spikeArr, 14, sr15), array.set(spikeArr, 15, sr16)
-array.set(spikeArr, 16, sr17), array.set(spikeArr, 17, sr18), array.set(spikeArr, 18, sr19), array.set(spikeArr, 19, sr20)
-array.set(spikeArr, 20, sr21), array.set(spikeArr, 21, sr22), array.set(spikeArr, 22, sr23), array.set(spikeArr, 23, sr24)
-array.set(spikeArr, 24, sr25), array.set(spikeArr, 25, sr26), array.set(spikeArr, 26, sr27), array.set(spikeArr, 27, sr28)
-array.set(spikeArr, 28, sr29), array.set(spikeArr, 29, sr30), array.set(spikeArr, 30, sr31), array.set(spikeArr, 31, sr32)
-array.set(spikeArr, 32, sr33), array.set(spikeArr, 33, sr34), array.set(spikeArr, 34, sr35), array.set(spikeArr, 35, sr36)
-array.set(spikeArr, 36, sr37), array.set(spikeArr, 37, sr38), array.set(spikeArr, 38, sr39), array.set(spikeArr, 39, sr40)
+array.set(spikeArr, 0,sr01), array.set(spikeArr, 1,sr02), array.set(spikeArr, 2,sr03), array.set(spikeArr, 3,sr04)
+array.set(spikeArr, 4,sr05), array.set(spikeArr, 5,sr06), array.set(spikeArr, 6,sr07), array.set(spikeArr, 7,sr08)
+array.set(spikeArr, 8,sr09), array.set(spikeArr, 9,sr10), array.set(spikeArr,10,sr11), array.set(spikeArr,11,sr12)
+array.set(spikeArr,12,sr13), array.set(spikeArr,13,sr14), array.set(spikeArr,14,sr15), array.set(spikeArr,15,sr16)
+array.set(spikeArr,16,sr17), array.set(spikeArr,17,sr18), array.set(spikeArr,18,sr19), array.set(spikeArr,19,sr20)
+array.set(spikeArr,20,sr21), array.set(spikeArr,21,sr22), array.set(spikeArr,22,sr23), array.set(spikeArr,23,sr24)
+array.set(spikeArr,24,sr25), array.set(spikeArr,25,sr26), array.set(spikeArr,26,sr27), array.set(spikeArr,27,sr28)
+array.set(spikeArr,28,sr29), array.set(spikeArr,29,sr30), array.set(spikeArr,30,sr31), array.set(spikeArr,31,sr32)
+array.set(spikeArr,32,sr33), array.set(spikeArr,33,sr34), array.set(spikeArr,34,sr35), array.set(spikeArr,35,sr36)
+array.set(spikeArr,36,sr37), array.set(spikeArr,37,sr38), array.set(spikeArr,38,sr39), array.set(spikeArr,39,sr40)
 
-array.set(priceArr, 0,  c01), array.set(priceArr, 1,  c02), array.set(priceArr, 2,  c03), array.set(priceArr, 3,  c04)
-array.set(priceArr, 4,  c05), array.set(priceArr, 5,  c06), array.set(priceArr, 6,  c07), array.set(priceArr, 7,  c08)
-array.set(priceArr, 8,  c09), array.set(priceArr, 9,  c10), array.set(priceArr, 10, c11), array.set(priceArr, 11, c12)
-array.set(priceArr, 12, c13), array.set(priceArr, 13, c14), array.set(priceArr, 14, c15), array.set(priceArr, 15, c16)
-array.set(priceArr, 16, c17), array.set(priceArr, 17, c18), array.set(priceArr, 18, c19), array.set(priceArr, 19, c20)
-array.set(priceArr, 20, c21), array.set(priceArr, 21, c22), array.set(priceArr, 22, c23), array.set(priceArr, 23, c24)
-array.set(priceArr, 24, c25), array.set(priceArr, 25, c26), array.set(priceArr, 26, c27), array.set(priceArr, 27, c28)
-array.set(priceArr, 28, c29), array.set(priceArr, 29, c30), array.set(priceArr, 30, c31), array.set(priceArr, 31, c32)
-array.set(priceArr, 32, c33), array.set(priceArr, 33, c34), array.set(priceArr, 34, c35), array.set(priceArr, 35, c36)
-array.set(priceArr, 36, c37), array.set(priceArr, 37, c38), array.set(priceArr, 38, c39), array.set(priceArr, 39, c40)
+array.set(priceArr, 0,c01), array.set(priceArr, 1,c02), array.set(priceArr, 2,c03), array.set(priceArr, 3,c04)
+array.set(priceArr, 4,c05), array.set(priceArr, 5,c06), array.set(priceArr, 6,c07), array.set(priceArr, 7,c08)
+array.set(priceArr, 8,c09), array.set(priceArr, 9,c10), array.set(priceArr,10,c11), array.set(priceArr,11,c12)
+array.set(priceArr,12,c13), array.set(priceArr,13,c14), array.set(priceArr,14,c15), array.set(priceArr,15,c16)
+array.set(priceArr,16,c17), array.set(priceArr,17,c18), array.set(priceArr,18,c19), array.set(priceArr,19,c20)
+array.set(priceArr,20,c21), array.set(priceArr,21,c22), array.set(priceArr,22,c23), array.set(priceArr,23,c24)
+array.set(priceArr,24,c25), array.set(priceArr,25,c26), array.set(priceArr,26,c27), array.set(priceArr,27,c28)
+array.set(priceArr,28,c29), array.set(priceArr,29,c30), array.set(priceArr,30,c31), array.set(priceArr,31,c32)
+array.set(priceArr,32,c33), array.set(priceArr,33,c34), array.set(priceArr,34,c35), array.set(priceArr,35,c36)
+array.set(priceArr,36,c37), array.set(priceArr,37,c38), array.set(priceArr,38,c39), array.set(priceArr,39,c40)
 
-array.set(chgArr, 0,  pc01), array.set(chgArr, 1,  pc02), array.set(chgArr, 2,  pc03), array.set(chgArr, 3,  pc04)
-array.set(chgArr, 4,  pc05), array.set(chgArr, 5,  pc06), array.set(chgArr, 6,  pc07), array.set(chgArr, 7,  pc08)
-array.set(chgArr, 8,  pc09), array.set(chgArr, 9,  pc10), array.set(chgArr, 10, pc11), array.set(chgArr, 11, pc12)
-array.set(chgArr, 12, pc13), array.set(chgArr, 13, pc14), array.set(chgArr, 14, pc15), array.set(chgArr, 15, pc16)
-array.set(chgArr, 16, pc17), array.set(chgArr, 17, pc18), array.set(chgArr, 18, pc19), array.set(chgArr, 19, pc20)
-array.set(chgArr, 20, pc21), array.set(chgArr, 21, pc22), array.set(chgArr, 22, pc23), array.set(chgArr, 23, pc24)
-array.set(chgArr, 24, pc25), array.set(chgArr, 25, pc26), array.set(chgArr, 26, pc27), array.set(chgArr, 27, pc28)
-array.set(chgArr, 28, pc29), array.set(chgArr, 29, pc30), array.set(chgArr, 30, pc31), array.set(chgArr, 31, pc32)
-array.set(chgArr, 32, pc33), array.set(chgArr, 33, pc34), array.set(chgArr, 34, pc35), array.set(chgArr, 35, pc36)
-array.set(chgArr, 36, pc37), array.set(chgArr, 37, pc38), array.set(chgArr, 38, pc39), array.set(chgArr, 39, pc40)
+array.set(chgArr, 0,pc01), array.set(chgArr, 1,pc02), array.set(chgArr, 2,pc03), array.set(chgArr, 3,pc04)
+array.set(chgArr, 4,pc05), array.set(chgArr, 5,pc06), array.set(chgArr, 6,pc07), array.set(chgArr, 7,pc08)
+array.set(chgArr, 8,pc09), array.set(chgArr, 9,pc10), array.set(chgArr,10,pc11), array.set(chgArr,11,pc12)
+array.set(chgArr,12,pc13), array.set(chgArr,13,pc14), array.set(chgArr,14,pc15), array.set(chgArr,15,pc16)
+array.set(chgArr,16,pc17), array.set(chgArr,17,pc18), array.set(chgArr,18,pc19), array.set(chgArr,19,pc20)
+array.set(chgArr,20,pc21), array.set(chgArr,21,pc22), array.set(chgArr,22,pc23), array.set(chgArr,23,pc24)
+array.set(chgArr,24,pc25), array.set(chgArr,25,pc26), array.set(chgArr,26,pc27), array.set(chgArr,27,pc28)
+array.set(chgArr,28,pc29), array.set(chgArr,29,pc30), array.set(chgArr,30,pc31), array.set(chgArr,31,pc32)
+array.set(chgArr,32,pc33), array.set(chgArr,33,pc34), array.set(chgArr,34,pc35), array.set(chgArr,35,pc36)
+array.set(chgArr,36,pc37), array.set(chgArr,37,pc38), array.set(chgArr,38,pc39), array.set(chgArr,39,pc40)
 
-array.set(nameArr, 0,  n01), array.set(nameArr, 1,  n02), array.set(nameArr, 2,  n03), array.set(nameArr, 3,  n04)
-array.set(nameArr, 4,  n05), array.set(nameArr, 5,  n06), array.set(nameArr, 6,  n07), array.set(nameArr, 7,  n08)
-array.set(nameArr, 8,  n09), array.set(nameArr, 9,  n10), array.set(nameArr, 10, n11), array.set(nameArr, 11, n12)
-array.set(nameArr, 12, n13), array.set(nameArr, 13, n14), array.set(nameArr, 14, n15), array.set(nameArr, 15, n16)
-array.set(nameArr, 16, n17), array.set(nameArr, 17, n18), array.set(nameArr, 18, n19), array.set(nameArr, 19, n20)
-array.set(nameArr, 20, n21), array.set(nameArr, 21, n22), array.set(nameArr, 22, n23), array.set(nameArr, 23, n24)
-array.set(nameArr, 24, n25), array.set(nameArr, 25, n26), array.set(nameArr, 26, n27), array.set(nameArr, 27, n28)
-array.set(nameArr, 28, n29), array.set(nameArr, 29, n30), array.set(nameArr, 30, n31), array.set(nameArr, 31, n32)
-array.set(nameArr, 32, n33), array.set(nameArr, 33, n34), array.set(nameArr, 34, n35), array.set(nameArr, 35, n36)
-array.set(nameArr, 36, n37), array.set(nameArr, 37, n38), array.set(nameArr, 38, n39), array.set(nameArr, 39, n40)
+array.set(nameArr, 0,n01), array.set(nameArr, 1,n02), array.set(nameArr, 2,n03), array.set(nameArr, 3,n04)
+array.set(nameArr, 4,n05), array.set(nameArr, 5,n06), array.set(nameArr, 6,n07), array.set(nameArr, 7,n08)
+array.set(nameArr, 8,n09), array.set(nameArr, 9,n10), array.set(nameArr,10,n11), array.set(nameArr,11,n12)
+array.set(nameArr,12,n13), array.set(nameArr,13,n14), array.set(nameArr,14,n15), array.set(nameArr,15,n16)
+array.set(nameArr,16,n17), array.set(nameArr,17,n18), array.set(nameArr,18,n19), array.set(nameArr,19,n20)
+array.set(nameArr,20,n21), array.set(nameArr,21,n22), array.set(nameArr,22,n23), array.set(nameArr,23,n24)
+array.set(nameArr,24,n25), array.set(nameArr,25,n26), array.set(nameArr,26,n27), array.set(nameArr,27,n28)
+array.set(nameArr,28,n29), array.set(nameArr,29,n30), array.set(nameArr,30,n31), array.set(nameArr,31,n32)
+array.set(nameArr,32,n33), array.set(nameArr,33,n34), array.set(nameArr,34,n35), array.set(nameArr,35,n36)
+array.set(nameArr,36,n37), array.set(nameArr,37,n38), array.set(nameArr,38,n39), array.set(nameArr,39,n40)
 
 // ─── SORT BY SPIKE RATIO (descending — selection sort) ──────────────────────
 
-// Initialize index array
 for i = 0 to SIZE - 1
     array.set(idxArr, i, i)
 
-// Selection sort descending
 for i = 0 to SIZE - 2
-    int maxPos  = i
+    int   maxPos = i
     float maxVal = array.get(spikeArr, array.get(idxArr, i))
     for j = i + 1 to SIZE - 1
         float val = array.get(spikeArr, array.get(idxArr, j))
@@ -234,7 +328,7 @@ getSignalColor(float spike) =>
     spike >= 8.0 ? colExt : spike >= 5.0 ? colVHi : spike >= 3.0 ? colHi : spike >= 2.0 ? colElev : spike >= 1.5 ? colMod : color.gray
 
 getSignalBg(float spike) =>
-    spike >= 8.0 ? color.new(colExt, 80) : spike >= 5.0 ? color.new(colVHi, 82) : spike >= 3.0 ? color.new(colHi, 85) : spike >= 2.0 ? color.new(colElev, 87) : spike >= 1.5 ? color.new(colMod, 90) : color.new(color.gray, 95)
+    spike >= 8.0 ? color.new(colExt,80) : spike >= 5.0 ? color.new(colVHi,82) : spike >= 3.0 ? color.new(colHi,85) : spike >= 2.0 ? color.new(colElev,87) : spike >= 1.5 ? color.new(colMod,90) : color.new(color.gray,95)
 
 getSignalLabel(float spike) =>
     spike >= 8.0 ? "EXTREME" : spike >= 5.0 ? "VERY HIGH" : spike >= 3.0 ? "HIGH" : spike >= 2.0 ? "ELEVATED" : spike >= 1.5 ? "MODERATE" : "—"
@@ -250,23 +344,54 @@ tablePos = switch tblPos
     "Middle Left"   => position.middle_left
     => position.top_right
 
+// ─── DETERMINE COLUMN COUNT ─────────────────────────────────────────────────
+
+int numCols = 2  // Ticker + Spike are always shown
+if showRank
+    numCols += 1
+numCols += 1     // Signal column always shown
+if showPrice
+    numCols += 1
+if showChg
+    numCols += 1
+
 // ─── BUILD TABLE ────────────────────────────────────────────────────────────
 
-var table scannerTbl = table.new(tablePos, 6, tblRows + 1, border_width = 1)
+var table scannerTbl = table.new(tablePos, 6, tblRows + 1, border_width = tblBorder)
+
+// Padding helper — adds spaces for column width
+pad(string txt) =>
+    if colWidth > 0
+        int padAmt = math.max(colWidth - str.length(txt), 0)
+        string result = txt
+        for _p = 1 to padAmt
+            result := " " + result
+        " " + result + " "
+    else
+        " " + txt + " "
 
 if barstate.islast
-    // Header row
+    // --- Header ---
     color hdrBg  = color.new(#1a1d2b, 0)
     color hdrTxt = color.new(#8890a5, 0)
 
-    table.cell(scannerTbl, 0, 0, "  #  ",    text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_center)
-    table.cell(scannerTbl, 1, 0, " TICKER ",  text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_left)
-    table.cell(scannerTbl, 2, 0, " SPIKE ",   text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_center)
-    table.cell(scannerTbl, 3, 0, " SIGNAL ",  text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_center)
-    table.cell(scannerTbl, 4, 0, " PRICE ",   text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_right)
-    table.cell(scannerTbl, 5, 0, "  CHG%  ",  text_color = hdrTxt, bgcolor = hdrBg, text_size = size.tiny, text_halign = text.align_right)
+    int col = 0
+    if showRank
+        table.cell(scannerTbl, col, 0, pad("#"),      text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_center)
+        col += 1
+    table.cell(scannerTbl, col, 0, pad("TICKER"),     text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_left)
+    col += 1
+    table.cell(scannerTbl, col, 0, pad("SPIKE"),      text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_center)
+    col += 1
+    table.cell(scannerTbl, col, 0, pad("SIGNAL"),     text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_center)
+    col += 1
+    if showPrice
+        table.cell(scannerTbl, col, 0, pad("PRICE"),  text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_right)
+        col += 1
+    if showChg
+        table.cell(scannerTbl, col, 0, pad("CHG%"),   text_color=hdrTxt, bgcolor=hdrBg, text_size=txtSize, text_halign=text.align_right)
 
-    // Data rows
+    // --- Data Rows ---
     int rowNum = 0
     for i = 0 to SIZE - 1
         if rowNum >= tblRows
@@ -278,7 +403,6 @@ if barstate.islast
         float  price = array.get(priceArr, idx)
         float  chg   = array.get(chgArr, idx)
 
-        // Skip normal tickers if user turned them off
         if not showNorm and spike < 1.5
             continue
 
@@ -286,35 +410,70 @@ if barstate.islast
         color  sigCol  = getSignalColor(spike)
         color  bgCol   = getSignalBg(spike)
         string sigLbl  = getSignalLabel(spike)
-        color  chgCol  = chg >= 0 ? color.new(#00c853, 0) : color.new(#ff1744, 0)
+        color  chgCol  = chg >= 0 ? color.new(#00c853,0) : color.new(#ff1744,0)
         string chgSign = chg >= 0 ? "+" : ""
         color  rowBg   = color.new(#131620, 0)
-
-        // Lit row background for signals
         color  cellBg  = spike >= 1.5 ? bgCol : rowBg
 
-        table.cell(scannerTbl, 0, row, str.tostring(rowNum + 1),                       text_color = color.new(#555e70, 0), bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_center)
-        table.cell(scannerTbl, 1, row, " " + name + " ",                               text_color = color.new(#dfe2ea, 0), bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_left)
-        table.cell(scannerTbl, 2, row, " " + str.tostring(spike, "#.#") + "x ",        text_color = sigCol,                bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_center)
-        table.cell(scannerTbl, 3, row, " " + sigLbl + " ",                             text_color = sigCol,                bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_center)
-        table.cell(scannerTbl, 4, row, " $" + str.tostring(price, "#.##") + " ",       text_color = color.new(#dfe2ea, 0), bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_right)
-        table.cell(scannerTbl, 5, row, " " + chgSign + str.tostring(chg, "#.##") + "% ", text_color = chgCol,             bgcolor = cellBg, text_size = size.tiny, text_halign = text.align_right)
+        int c = 0
+        if showRank
+            table.cell(scannerTbl, c, row, pad(str.tostring(rowNum+1)),                             text_color=color.new(#555e70,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+            c += 1
+        table.cell(scannerTbl, c, row, pad(name),                                                   text_color=color.new(#dfe2ea,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_left)
+        c += 1
+        table.cell(scannerTbl, c, row, pad(str.tostring(spike,"#.#")+"x"),                          text_color=sigCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+        c += 1
+        table.cell(scannerTbl, c, row, pad(sigLbl),                                                 text_color=sigCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_center)
+        c += 1
+        if showPrice
+            table.cell(scannerTbl, c, row, pad("$"+str.tostring(price,"#.##")),                     text_color=color.new(#dfe2ea,0), bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
+            c += 1
+        if showChg
+            table.cell(scannerTbl, c, row, pad(chgSign+str.tostring(chg,"#.##")+"%"),               text_color=chgCol,               bgcolor=cellBg, text_size=txtSize, text_halign=text.align_right)
 
         rowNum += 1
 
 // ─── ALERTS ─────────────────────────────────────────────────────────────────
+// Three separate alert conditions:
+//   1. Any spike above user-defined threshold (general)
+//   2. Very High spikes (5x+)
+//   3. Extreme spikes (8x+)
+// Each builds a message listing which tickers triggered it.
 
-// Fire alert when any ticker exceeds the alert threshold
-bool anySpike = false
-string alertMsg = ""
+bool anySpike    = false
+bool veryHiSpike = false
+bool extremeSpike = false
+string alertMsgGeneral  = ""
+string alertMsgVeryHigh = ""
+string alertMsgExtreme  = ""
 
 for i = 0 to SIZE - 1
-    float sp = array.get(spikeArr, i)
+    float  sp   = array.get(spikeArr, i)
+    string nm   = array.get(nameArr, i)
+    float  chgV = array.get(chgArr, i)
+    string chgS = chgV >= 0 ? "+" : ""
+    string info = nm + " " + str.tostring(sp, "#.#") + "x (" + chgS + str.tostring(chgV, "#.##") + "%) | "
+
     if sp >= alertThr
         anySpike := true
-        alertMsg += array.get(nameArr, i) + " " + str.tostring(sp, "#.#") + "x | "
+        alertMsgGeneral += info
+    if sp >= 5.0
+        veryHiSpike := true
+        alertMsgVeryHigh += info
+    if sp >= 8.0
+        extremeSpike := true
+        alertMsgExtreme += info
 
-alertcondition(anySpike, title = "Volume Spike Detected", message = "RVOL Spike: {{plot_0}}")
+// General alert — fires at your custom threshold (respects toggle)
+alertcondition(alertGeneral and anySpike, title = "RVOL Spike (Custom Threshold)", message = "Volume spike above threshold detected! Open scanner to see details.")
 
-// Plot hidden value for alert message
-plot(anySpike ? array.max(spikeArr) : 0, display = display.none, title = "Max Spike")
+// Very High alert — fires at 5x+ (respects toggle)
+alertcondition(alertVeryHigh and veryHiSpike, title = "RVOL VERY HIGH (5x+)", message = "VERY HIGH volume spike (5x+) detected! Possible catalyst/news event.")
+
+// Extreme alert — fires at 8x+ (respects toggle)
+alertcondition(alertExtreme and extremeSpike, title = "RVOL EXTREME (8x+)", message = "EXTREME volume spike (8x+) detected! Major event — get to this chart immediately.")
+
+// Hidden plots for alert message placeholders
+plot(anySpike     ? array.max(spikeArr) : 0, display = display.none, title = "Max Spike")
+plot(veryHiSpike  ? 1 : 0,                   display = display.none, title = "Very High Flag")
+plot(extremeSpike ? 1 : 0,                   display = display.none, title = "Extreme Flag")
