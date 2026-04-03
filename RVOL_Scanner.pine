@@ -23,6 +23,8 @@ bool   showNorm = input.bool(true, "Show Normal (no spike) Tickers", tooltip = "
 
 // ─── INPUTS: ALERTS ─────────────────────────────────────────────────────────
 
+bool   demoMode  = input.bool(false, "Demo Mode (Test Data)", tooltip = "Injects simulated volume spike data across all signal levels so you can verify the table colors, sorting, and layout are working correctly. Turn off for live data.", group = "Scanner")
+
 bool   alertGeneral  = input.bool(true,  "Alert: Custom Threshold",   tooltip = "Fire alert when any ticker exceeds your Alert Threshold above.", group = "Alerts")
 bool   alertVeryHigh = input.bool(true,  "Alert: Very High (5x+)",    tooltip = "Fire alert when any ticker hits VERY HIGH volume (5x+ spike). Great for catching catalyst moves early.", group = "Alerts")
 bool   alertExtreme  = input.bool(true,  "Alert: Extreme (8x+)",      tooltip = "Fire alert when any ticker hits EXTREME volume (8x+ spike). Major event — get to this chart fast.", group = "Alerts")
@@ -303,6 +305,40 @@ array.set(nameArr,24,n25), array.set(nameArr,25,n26), array.set(nameArr,26,n27),
 array.set(nameArr,28,n29), array.set(nameArr,29,n30), array.set(nameArr,30,n31), array.set(nameArr,31,n32)
 array.set(nameArr,32,n33), array.set(nameArr,33,n34), array.set(nameArr,34,n35), array.set(nameArr,35,n36)
 array.set(nameArr,36,n37), array.set(nameArr,37,n38), array.set(nameArr,38,n39), array.set(nameArr,39,n40)
+
+// ─── DEMO MODE: inject test data across all signal levels ───────────────────
+
+if demoMode
+    // Spike ratios: 2 extreme, 3 very high, 5 high, 5 elevated, 5 moderate, rest normal
+    // This lets you visually verify every color band and the sort order.
+    float[] demoSpikes = array.from(
+      12.4, 9.1,
+      7.2, 6.5, 5.3,
+      4.8, 4.1, 3.6, 3.2, 3.0,
+      2.8, 2.5, 2.3, 2.1, 2.0,
+      1.9, 1.7, 1.6, 1.5, 1.5,
+      1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.9, 1.0, 0.8,
+      0.7, 0.6, 0.5, 0.9, 1.1, 0.8, 0.7, 0.6, 0.5, 0.4)
+    float[] demoPrices = array.from(
+      187.50, 422.30,
+      145.60, 98.20, 53.40,
+      312.80, 76.10, 220.50, 165.90, 88.70,
+      44.30, 155.20, 67.80, 201.40, 130.60,
+      92.10, 38.50, 175.30, 56.20, 110.40,
+      84.70, 43.20, 198.60, 72.30, 145.80, 63.10, 29.40, 88.50, 112.30, 55.70,
+      167.40, 41.80, 93.20, 78.60, 134.50, 62.30, 47.80, 156.90, 83.40, 39.60)
+    float[] demoChgs = array.from(
+      8.42, -5.13,
+      6.21, -3.87, 4.55,
+      -2.14, 3.67, -1.98, 5.32, -4.21,
+      2.88, -1.45, 3.12, -0.67, 1.23,
+      -0.89, 0.45, -1.34, 0.78, -0.23,
+      0.34, -0.56, 0.12, -0.45, 0.67, -0.23, 0.89, -0.34, 0.12, -0.78,
+      0.45, -0.12, 0.23, -0.67, 0.34, -0.89, 0.56, -0.12, 0.34, -0.45)
+    for i = 0 to SIZE - 1
+        array.set(spikeArr, i, array.get(demoSpikes, i))
+        array.set(priceArr, i, array.get(demoPrices, i))
+        array.set(chgArr,   i, array.get(demoChgs, i))
 
 // ─── SORT BY SPIKE RATIO (descending — selection sort) ──────────────────────
 
