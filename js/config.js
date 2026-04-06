@@ -79,8 +79,8 @@ const TICKER_LISTS = {
       'GME', 'AMC', 'BB', 'SOFI', 'RIVN', 'LCID', 'NIO', 'MARA',
       'RIOT', 'COIN', 'HOOD', 'UPST', 'AFRM', 'IONQ', 'RKLB', 'SMCI',
       'MSTR', 'LUNR', 'JOBY', 'CIFR', 'CLSK', 'HIMS', 'OPEN', 'CLOV',
-      'BYND', 'PLUG', 'FCEL', 'LAZR', 'GOEV', 'QS', 'DNA', 'PSNY',
-      'NKLA', 'VLD', 'ASTS', 'XPEV', 'LI', 'FFIE', 'MULN', 'WULF',
+      'BYND', 'PLUG', 'FCEL', 'LAZR', 'SOUN', 'QS', 'DNA', 'PSNY',
+      'RGTI', 'OKLO', 'ASTS', 'XPEV', 'LI', 'ACHR', 'APLD', 'WULF',
     ],
   },
   'finance-reit': {
@@ -92,7 +92,7 @@ const TICKER_LISTS = {
       'PNC', 'TFC', 'COF', 'AIG', 'MET', 'PRU', 'ICE', 'CME',
       'SPGI', 'MCO', 'FIS', 'PYPL', 'MA', 'V', 'SYF', 'DFS',
       'AMT', 'PLD', 'CCI', 'EQIX', 'O', 'SPG', 'PSA', 'DLR',
-      'WELL', 'AVB', 'EQR', 'VTR', 'ARE', 'MAA', 'UDR', 'PEAK',
+      'WELL', 'AVB', 'EQR', 'VTR', 'ARE', 'MAA', 'UDR', 'DOC',
     ],
   },
   'health-bio': {
@@ -104,7 +104,7 @@ const TICKER_LISTS = {
       'MRNA', 'BIIB', 'ILMN', 'DXCM', 'IDXX', 'ZBH', 'SYK', 'BSX',
       'MDT', 'EW', 'BDX', 'A', 'ALGN', 'HOLX', 'TECH', 'PODD',
       'EXAS', 'RARE', 'NBIX', 'INCY', 'ALNY', 'SRPT', 'PCVX', 'BMRN',
-      'SGEN', 'CRSP', 'BEAM', 'NTLA', 'EDIT', 'IONS', 'ARWR', 'FATE',
+      'ARGX', 'CRSP', 'BEAM', 'NTLA', 'EDIT', 'IONS', 'ARWR', 'FATE',
     ],
   },
   'energy-ind': {
@@ -127,7 +127,7 @@ const TICKER_LISTS = {
     tickers: [
       'BINANCE:BTCUSDT', 'BINANCE:ETHUSDT', 'BINANCE:BNBUSDT', 'BINANCE:SOLUSDT',
       'BINANCE:XRPUSDT', 'BINANCE:ADAUSDT', 'BINANCE:DOGEUSDT', 'BINANCE:AVAXUSDT',
-      'BINANCE:DOTUSDT', 'BINANCE:MATICUSDT', 'BINANCE:LINKUSDT', 'BINANCE:SHIBUSDT',
+      'BINANCE:DOTUSDT', 'BINANCE:POLUSDT', 'BINANCE:LINKUSDT', 'BINANCE:SHIBUSDT',
       'BINANCE:LTCUSDT', 'BINANCE:UNIUSDT', 'BINANCE:ATOMUSDT', 'BINANCE:ETCUSDT',
       'BINANCE:XLMUSDT', 'BINANCE:NEARUSDT', 'BINANCE:APTUSDT', 'BINANCE:ARBUSDT',
       'BINANCE:OPUSDT', 'BINANCE:FILUSDT', 'BINANCE:AAVEUSDT', 'BINANCE:MKRUSDT',

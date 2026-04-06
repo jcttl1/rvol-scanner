@@ -78,8 +78,12 @@ string cu39=input.symbol("","Custom 39",group="Custom Symbols"),string cu40=inpu
 // ─── RESOLVE TEXT SIZE ──────────────────────────────────────────────────────
 
 var string txtSize = switch textSz
-    "Auto" => size.auto, "Tiny" => size.tiny, "Small" => size.small
-    "Normal" => size.normal, "Large" => size.large, "Huge" => size.huge
+    "Auto"   => size.auto
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    "Huge"   => size.huge
     => size.tiny
 
 // ─── TABLE POSITION ────────────────────────────────────────────────────────
@@ -105,7 +109,7 @@ bool L2 = listNum == 2
 
 string p01=L1?"BINANCE:BTCUSDT" :L2?"BINANCE:AVAXUSDT" :"BINANCE:DOGEUSDT"
 string p02=L1?"BINANCE:ETHUSDT" :L2?"BINANCE:DOTUSDT"  :"BINANCE:SHIBUSDT"
-string p03=L1?"BINANCE:BNBUSDT" :L2?"BINANCE:MATICUSDT":"BINANCE:PEPEUSDT"
+string p03=L1?"BINANCE:BNBUSDT" :L2?"BINANCE:POLUSDT"  :"BINANCE:PEPEUSDT"
 string p04=L1?"BINANCE:SOLUSDT" :L2?"BINANCE:LINKUSDT" :"BINANCE:FLOKIUSDT"
 string p05=L1?"BINANCE:XRPUSDT" :L2?"BINANCE:UNIUSDT"  :"BINANCE:BONKUSDT"
 string p06=L1?"BINANCE:ADAUSDT" :L2?"BINANCE:ATOMUSDT" :"BINANCE:WIFUSDT"
@@ -116,16 +120,16 @@ string p10=L1?"BINANCE:SHIBUSDT":L2?"BINANCE:APTUSDT"  :"BINANCE:PEOPLEUSDT"
 string p11=L1?"BINANCE:AVAXUSDT":L2?"BINANCE:OPUSDT"   :"BINANCE:LUNCUSDT"
 string p12=L1?"BINANCE:DOTUSDT" :L2?"BINANCE:ARBUSDT"  :"BINANCE:LUNAUSDT"
 string p13=L1?"BINANCE:LINKUSDT":L2?"BINANCE:SUIUSDT"  :"BINANCE:BABYDOGEUSDT"
-string p14=L1?"BINANCE:MATICUSDT":L2?"BINANCE:SEIUSDT" :"BINANCE:1000SATSUSDT"
+string p14=L1?"BINANCE:POLUSDT"  :L2?"BINANCE:SEIUSDT" :"BINANCE:1000SATSUSDT"
 string p15=L1?"BINANCE:LTCUSDT" :L2?"BINANCE:TIAUSDT"  :"BINANCE:RATSUSDT"
 string p16=L1?"BINANCE:BCHUSDT" :L2?"BINANCE:IMXUSDT"  :"BINANCE:ORDIUSDT"
 string p17=L1?"BINANCE:UNIUSDT" :L2?"BINANCE:RENDERUSDT":"BINANCE:SATSUSDT"
 string p18=L1?"BINANCE:ATOMUSDT":L2?"BINANCE:RUNEUSDT" :"BINANCE:MEWUSDT"
 string p19=L1?"BINANCE:XLMUSDT" :L2?"BINANCE:FETUSDT"  :"BINANCE:CATUSDT"
-string p20=L1?"BINANCE:NEARUSDT":L2?"BINANCE:AGIXUSDT" :"BINANCE:NEIROUSDT"
+string p20=L1?"BINANCE:NEARUSDT":L2?"BINANCE:ONDOUSDT" :"BINANCE:NEIROUSDT"
 string p21=L1?"BINANCE:ICPUSDT" :L2?"BINANCE:GRTUSDT"  :"BINANCE:BRETTUSDT"
 string p22=L1?"BINANCE:APTUSDT" :L2?"BINANCE:SNXUSDT"  :"BINANCE:MOGUSDT"
-string p23=L1?"BINANCE:FILUSDT" :L2?"BINANCE:MKRUSDT"  :"BINANCE:MYROFLOKI"
+string p23=L1?"BINANCE:FILUSDT" :L2?"BINANCE:MKRUSDT"  :"BINANCE:MYROUSDT"
 string p24=L1?"BINANCE:ETCUSDT" :L2?"BINANCE:AAVEUSDT" :"BINANCE:TOSHIUSDT"
 string p25=L1?"BINANCE:HBARUSDT":L2?"BINANCE:LDOUSDT"  :"BINANCE:LADYSUSDT"
 string p26=L1?"BINANCE:VETUSDT" :L2?"BINANCE:CRVUSDT"  :"BINANCE:BCHUSDT"
@@ -328,12 +332,22 @@ getLevel(float spike) =>
 
 getLevelColor(int level) =>
     switch level
-        1 => col1, 2 => col2, 3 => col3, 4 => col4, 5 => col5, 6 => col6
+        1 => col1
+        2 => col2
+        3 => col3
+        4 => col4
+        5 => col5
+        6 => col6
         => color.gray
 
 getLevelLabel(int level) =>
     switch level
-        1 => "ORANGE", 2 => "YELLOW", 3 => "GREEN", 4 => "LT GRN", 5 => "BLUE", 6 => "PINK"
+        1 => "ORANGE"
+        2 => "YELLOW"
+        3 => "GREEN"
+        4 => "LT GRN"
+        5 => "BLUE"
+        6 => "PINK"
         => "—"
 
 isBright(float changePct) =>

@@ -86,8 +86,12 @@ string cu39=input.symbol("","Custom 39",group="Custom Symbols"),string cu40=inpu
 // ─── RESOLVE TEXT SIZE ──────────────────────────────────────────────────────
 
 var string txtSize = switch textSz
-    "Auto" => size.auto, "Tiny" => size.tiny, "Small" => size.small
-    "Normal" => size.normal, "Large" => size.large, "Huge" => size.huge
+    "Auto"   => size.auto
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    "Huge"   => size.huge
     => size.tiny
 
 // ─── TABLE POSITION (based on Table Number for side-by-side) ────────────────
@@ -143,18 +147,18 @@ string p25=L1?"MRK"  :L2?"FTNT" :L3?"BYND" :L4?"AMT"  :L5?"EXAS" :"UPS"
 string p26=L1?"TMO"  :L2?"TTD"  :L3?"PLUG" :L4?"PLD"  :L5?"RARE" :"UNP"
 string p27=L1?"ORCL" :L2?"DASH" :L3?"FCEL" :L4?"CCI"  :L5?"NBIX" :"LMT"
 string p28=L1?"CRM"  :L2?"ROKU" :L3?"LAZR" :L4?"EQIX" :L5?"INCY" :"NOC"
-string p29=L1?"CSCO" :L2?"U"    :L3?"GOEV" :L4?"O"    :L5?"ALNY" :"BA"
+string p29=L1?"CSCO" :L2?"U"    :L3?"SOUN" :L4?"O"    :L5?"ALNY" :"BA"
 string p30=L1?"ACN"  :L2?"PATH" :L3?"QS"   :L4?"SPG"  :L5?"SRPT" :"GD"
 string p31=L1?"MCD"  :L2?"BILL" :L3?"DNA"  :L4?"PSA"  :L5?"PCVX" :"TDG"
 string p32=L1?"NKE"  :L2?"MDB"  :L3?"PSNY" :L4?"DLR"  :L5?"BMRN" :"ITW"
-string p33=L1?"LIN"  :L2?"OKTA" :L3?"NKLA" :L4?"WELL" :L5?"CRSP" :"EMR"
-string p34=L1?"DHR"  :L2?"ESTC" :L3?"VLD"  :L4?"AVB"  :L5?"BEAM" :"ETN"
+string p33=L1?"LIN"  :L2?"OKTA" :L3?"RGTI" :L4?"WELL" :L5?"CRSP" :"EMR"
+string p34=L1?"DHR"  :L2?"ESTC" :L3?"OKLO" :L4?"AVB"  :L5?"BEAM" :"ETN"
 string p35=L1?"TXN"  :L2?"CFLT" :L3?"ASTS" :L4?"EQR"  :L5?"NTLA" :"ROK"
 string p36=L1?"ADBE" :L2?"DOCN" :L3?"XPEV" :L4?"VTR"  :L5?"EDIT" :"CARR"
 string p37=L1?"PM"   :L2?"GTLB" :L3?"LI"   :L4?"ARE"  :L5?"IONS" :"OTIS"
-string p38=L1?"NEE"  :L2?"MNDY" :L3?"FFIE" :L4?"MAA"  :L5?"ARWR" :"IR"
-string p39=L1?"RTX"  :L2?"GLBE" :L3?"MULN" :L4?"UDR"  :L5?"FATE" :"AME"
-string p40=L1?"LOW"  :L2?"S"    :L3?"WULF" :L4?"PEAK" :L5?"SGEN" :"GNRC"
+string p38=L1?"NEE"  :L2?"MNDY" :L3?"ACHR" :L4?"MAA"  :L5?"ARWR" :"IR"
+string p39=L1?"RTX"  :L2?"GLBE" :L3?"APLD" :L4?"UDR"  :L5?"FATE" :"AME"
+string p40=L1?"LOW"  :L2?"S"    :L3?"WULF" :L4?"DOC"  :L5?"ARGX" :"GNRC"
 
 // ─── MERGE: custom overrides preset ─────────────────────────────────────────
 
@@ -338,12 +342,22 @@ getLevel(float spike) =>
 
 getLevelColor(int level) =>
     switch level
-        1 => col1, 2 => col2, 3 => col3, 4 => col4, 5 => col5, 6 => col6
+        1 => col1
+        2 => col2
+        3 => col3
+        4 => col4
+        5 => col5
+        6 => col6
         => color.gray
 
 getLevelLabel(int level) =>
     switch level
-        1 => "ORANGE", 2 => "YELLOW", 3 => "GREEN", 4 => "LT GRN", 5 => "BLUE", 6 => "PINK"
+        1 => "ORANGE"
+        2 => "YELLOW"
+        3 => "GREEN"
+        4 => "LT GRN"
+        5 => "BLUE"
+        6 => "PINK"
         => "—"
 
 // Bright vs Dim: bright if |change%| >= priceMoveThr, dim otherwise
