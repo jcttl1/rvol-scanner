@@ -1,44 +1,37 @@
 // ============================================================================
-// RVOL Volume Spike Scanner
+// RVOL Crypto Volume Spike Scanner
 // TradingView Pine Script v6
 //
-// Inspired by Scripted Trading's Volume Spike Scanner. Scans up to 40 tickers
-// for unusual volume spikes. Table cells light up with colored signals when
-// spikes occur. 6 signal intensity levels with bright/dim distinction:
-//   Bright = volume spike WITH a corresponding price move
-//   Dim    = volume spike WITHOUT a significant price move
+// Companion to the RVOL Volume Spike Scanner (stocks). Scans up to 40 crypto
+// pairs for unusual volume spikes. Separated from stocks for performance
+// reasons — crypto trades 24/7 with different volume profiles.
 //
-// 6 stock pre-load lists + separate crypto scanner. Continuously sorted with
-// most intense spikes always at the top. Supports alerts with filters for
-// market hours only, bright signals only, and delayed start after open.
+// Same signal system: 6 intensity levels, bright/dim distinction,
+// continuous sorting, and alert support.
 //
-// Add the indicator up to 6 times with different Table Numbers and Pre-Load
-// Lists to scan 240 stocks simultaneously side-by-side.
+// Add the indicator alongside stock scanner instances. Uses its own table
+// position to avoid overlap.
 // ============================================================================
 
 //@version=6
-indicator("RVOL Volume Spike Scanner", overlay = true, max_bars_back = 500)
+indicator("RVOL Crypto Volume Spike Scanner", overlay = true, max_bars_back = 500)
 
 // ─── INPUTS: SCANNER ────────────────────────────────────────────────────────
 
-int    tableNum  = input.int(1, "Table Number", minval = 1, maxval = 6, tooltip = "Set a different number (1-6) for each instance of the indicator to position tables side-by-side without overlap.", group = "Scanner")
-int    listNum   = input.int(1, "Pre-Load List #", minval = 1, maxval = 6, tooltip = "Which preset stock list to scan (1-6). Each list has 40 tickers. Set each indicator instance to a different list.", group = "Scanner")
-int    lookback  = input.int(20, "Lookback Bars", minval = 5, maxval = 100, tooltip = "Number of prior bars to average volume over for spike detection. Recommended: 20.", group = "Scanner")
+int    tableNum  = input.int(1, "Table Number", minval = 1, maxval = 6, tooltip = "Set a different number (1-6) for each instance. Use a number that doesn't conflict with your stock scanner instances.", group = "Scanner")
+int    listNum   = input.int(1, "Pre-Load List #", minval = 1, maxval = 3, tooltip = "Which preset crypto list to scan (1-3). Each list has 40 pairs.", group = "Scanner")
+int    lookback  = input.int(20, "Lookback Bars", minval = 5, maxval = 100, tooltip = "Number of prior bars to average volume over for spike detection.", group = "Scanner")
 bool   showNorm  = input.bool(true, "Show Normal (no spike) Tickers", tooltip = "If off, only tickers with a signal are shown.", group = "Scanner")
-bool   demoMode  = input.bool(false, "Demo Mode (Test Data)", tooltip = "Injects simulated data across all signal levels to verify colors and layout.", group = "Scanner")
+bool   demoMode  = input.bool(false, "Demo Mode (Test Data)", tooltip = "Injects simulated data to verify colors and layout.", group = "Scanner")
 
 // ─── INPUTS: FILTERS ────────────────────────────────────────────────────────
 
-bool   useMinVol = input.bool(true, "Minimum Volume Filter", tooltip = "Filter out tickers with bar volume below the threshold. Recommended ON for stocks. Turn OFF for crypto.", group = "Filters")
-int    minVolThr = input.int(10000, "Min Volume Threshold", minval = 0, step = 1000, tooltip = "Minimum bar volume required for a ticker to show a signal. Default 10,000.", group = "Filters")
-float  priceMoveThr = input.float(0.3, "Price Move % (Bright/Dim)", minval = 0.05, step = 0.05, tooltip = "Minimum absolute % price change on the bar to classify a signal as BRIGHT (with price move). Below this = DIM (volume only, no significant price move).", group = "Filters")
+float  priceMoveThr = input.float(0.5, "Price Move % (Bright/Dim)", minval = 0.05, step = 0.1, tooltip = "Minimum absolute % price change on the bar to classify a signal as BRIGHT. Higher default than stocks because crypto is more volatile.", group = "Filters")
 
 // ─── INPUTS: ALERTS ─────────────────────────────────────────────────────────
 
-bool   alertOn       = input.bool(true, "Enable Alerts", group = "Alerts")
-bool   alertBrightOnly = input.bool(true, "Bright Signals Only", tooltip = "Only fire alerts for bright signals (volume spike WITH price move). On by default.", group = "Alerts")
-bool   alertMktHours = input.bool(true, "Market Hours Only", tooltip = "Only fire alerts during market hours (9:30 AM - 4:00 PM ET). Prevents repeat alerts after close.", group = "Alerts")
-int    alertDelayMin = input.int(0, "Start Alerts # Min After Open", minval = 0, maxval = 60, tooltip = "Keep alerts paused for this many minutes after market open. E.g. set to 7 to skip the first 7 minutes of chaos.", group = "Alerts")
+bool   alertOn         = input.bool(true, "Enable Alerts", group = "Alerts")
+bool   alertBrightOnly = input.bool(true, "Bright Signals Only", tooltip = "Only fire alerts for bright signals (volume spike WITH price move).", group = "Alerts")
 
 // ─── INPUTS: TABLE APPEARANCE ───────────────────────────────────────────────
 
@@ -48,9 +41,8 @@ int    tblBorder = input.int(1, "Border Width", minval = 0, maxval = 3, group = 
 bool   showRank  = input.bool(true, "Show Rank (#)", group = "Table Appearance")
 bool   showPrice = input.bool(true, "Show Price", group = "Table Appearance")
 bool   showChg   = input.bool(true, "Show Change %", group = "Table Appearance")
-bool   showVol   = input.bool(false, "Show Bar Volume", group = "Table Appearance")
 
-// ─── INPUTS: SIGNAL COLORS (6 levels matching Scripted Trading) ─────────────
+// ─── INPUTS: SIGNAL COLORS ─────────────────────────────────────────────────
 
 color  col1 = input.color(#ff8800, "Level 1 — Orange (Highest)",  group = "Signal Colors")
 color  col2 = input.color(#ffdd00, "Level 2 — Yellow",            group = "Signal Colors")
@@ -61,7 +53,7 @@ color  col6 = input.color(#dd66cc, "Level 6 — Pink (Lowest)",     group = "Sig
 
 // ─── INPUTS: CUSTOM SYMBOLS ─────────────────────────────────────────────────
 
-bool   useCustom = input.bool(false, "Use Custom Symbols", tooltip = "Override preset tickers with your own. Blank slots use the preset.", group = "Custom Symbols")
+bool   useCustom = input.bool(false, "Use Custom Symbols", tooltip = "Override preset pairs with your own. Blank slots use the preset.", group = "Custom Symbols")
 string cu01=input.symbol("","Custom  1",group="Custom Symbols"),string cu02=input.symbol("","Custom  2",group="Custom Symbols")
 string cu03=input.symbol("","Custom  3",group="Custom Symbols"),string cu04=input.symbol("","Custom  4",group="Custom Symbols")
 string cu05=input.symbol("","Custom  5",group="Custom Symbols"),string cu06=input.symbol("","Custom  6",group="Custom Symbols")
@@ -90,9 +82,7 @@ var string txtSize = switch textSz
     "Normal" => size.normal, "Large" => size.large, "Huge" => size.huge
     => size.tiny
 
-// ─── TABLE POSITION (based on Table Number for side-by-side) ────────────────
-// Table 1 = top_right, 2 = top_center(?), etc. Pine only has 6 positions.
-// Map table numbers to the 6 available positions.
+// ─── TABLE POSITION ────────────────────────────────────────────────────────
 
 var tablePos = switch tableNum
     1 => position.top_right
@@ -107,54 +97,52 @@ var tablePos = switch tableNum
 
 bool L1 = listNum == 1
 bool L2 = listNum == 2
-bool L3 = listNum == 3
-bool L4 = listNum == 4
-bool L5 = listNum == 5
-// L6 = else
+// L3 = else
 
-// ─── PRESET SYMBOL ASSIGNMENT (40 tickers × 6 lists) ───────────────────────
-//  L1=Focus/Mega  L2=Tech/Growth  L3=Momentum/Small  L4=Finance  L5=Health  L6=Energy
+// ─── PRESET CRYPTO PAIRS (40 tickers × 3 lists) ────────────────────────────
+// L1 = Major Crypto    L2 = Alt/Mid-Cap    L3 = Meme/Micro
+// Using BINANCE exchange prefix for reliable data.
 
-string p01=L1?"AAPL" :L2?"AMD"  :L3?"GME"  :L4?"GS"   :L5?"PFE"  :"XOM"
-string p02=L1?"MSFT" :L2?"NFLX" :L3?"AMC"  :L4?"MS"   :L5?"ABT"  :"CVX"
-string p03=L1?"AMZN" :L2?"INTC" :L3?"BB"   :L4?"C"    :L5?"ISRG" :"COP"
-string p04=L1?"NVDA" :L2?"QCOM" :L3?"SOFI" :L4?"WFC"  :L5?"GILD" :"SLB"
-string p05=L1?"GOOGL":L2?"AMAT" :L3?"RIVN" :L4?"SCHW" :L5?"AMGN" :"EOG"
-string p06=L1?"META" :L2?"PANW" :L3?"LCID" :L4?"BLK"  :L5?"BMY"  :"MPC"
-string p07=L1?"TSLA" :L2?"SNPS" :L3?"NIO"  :L4?"AXP"  :L5?"REGN" :"VLO"
-string p08=L1?"BRK.B":L2?"CDNS" :L3?"MARA" :L4?"USB"  :L5?"VRTX" :"PSX"
-string p09=L1?"UNH"  :L2?"MRVL" :L3?"RIOT" :L4?"PNC"  :L5?"MRNA" :"OXY"
-string p10=L1?"LLY"  :L2?"KLAC" :L3?"COIN" :L4?"TFC"  :L5?"BIIB" :"DVN"
-string p11=L1?"JPM"  :L2?"LRCX" :L3?"HOOD" :L4?"COF"  :L5?"ILMN" :"HAL"
-string p12=L1?"V"    :L2?"MU"   :L3?"UPST" :L4?"AIG"  :L5?"DXCM" :"FANG"
-string p13=L1?"XOM"  :L2?"NOW"  :L3?"AFRM" :L4?"MET"  :L5?"IDXX" :"FCX"
-string p14=L1?"AVGO" :L2?"SHOP" :L3?"IONQ" :L4?"PRU"  :L5?"ZBH"  :"NEM"
-string p15=L1?"MA"   :L2?"SQ"   :L3?"RKLB" :L4?"ICE"  :L5?"SYK"  :"NUE"
-string p16=L1?"JNJ"  :L2?"PLTR" :L3?"SMCI" :L4?"CME"  :L5?"BSX"  :"CLF"
-string p17=L1?"PG"   :L2?"CRWD" :L3?"MSTR" :L4?"SPGI" :L5?"MDT"  :"AA"
-string p18=L1?"HD"   :L2?"DDOG" :L3?"LUNR" :L4?"MCO"  :L5?"EW"   :"X"
-string p19=L1?"COST" :L2?"NET"  :L3?"JOBY" :L4?"FIS"  :L5?"BDX"  :"GOLD"
-string p20=L1?"ABBV" :L2?"SNOW" :L3?"CIFR" :L4?"PYPL" :L5?"A"    :"MP"
-string p21=L1?"WMT"  :L2?"ZS"   :L3?"CLSK" :L4?"MA"   :L5?"ALGN" :"CAT"
-string p22=L1?"BAC"  :L2?"TEAM" :L3?"HIMS" :L4?"V"    :L5?"HOLX" :"DE"
-string p23=L1?"KO"   :L2?"HUBS" :L3?"OPEN" :L4?"SYF"  :L5?"TECH" :"HON"
-string p24=L1?"PEP"  :L2?"WDAY" :L3?"CLOV" :L4?"DFS"  :L5?"PODD" :"GE"
-string p25=L1?"MRK"  :L2?"FTNT" :L3?"BYND" :L4?"AMT"  :L5?"EXAS" :"UPS"
-string p26=L1?"TMO"  :L2?"TTD"  :L3?"PLUG" :L4?"PLD"  :L5?"RARE" :"UNP"
-string p27=L1?"ORCL" :L2?"DASH" :L3?"FCEL" :L4?"CCI"  :L5?"NBIX" :"LMT"
-string p28=L1?"CRM"  :L2?"ROKU" :L3?"LAZR" :L4?"EQIX" :L5?"INCY" :"NOC"
-string p29=L1?"CSCO" :L2?"U"    :L3?"GOEV" :L4?"O"    :L5?"ALNY" :"BA"
-string p30=L1?"ACN"  :L2?"PATH" :L3?"QS"   :L4?"SPG"  :L5?"SRPT" :"GD"
-string p31=L1?"MCD"  :L2?"BILL" :L3?"DNA"  :L4?"PSA"  :L5?"PCVX" :"TDG"
-string p32=L1?"NKE"  :L2?"MDB"  :L3?"PSNY" :L4?"DLR"  :L5?"BMRN" :"ITW"
-string p33=L1?"LIN"  :L2?"OKTA" :L3?"NKLA" :L4?"WELL" :L5?"CRSP" :"EMR"
-string p34=L1?"DHR"  :L2?"ESTC" :L3?"VLD"  :L4?"AVB"  :L5?"BEAM" :"ETN"
-string p35=L1?"TXN"  :L2?"CFLT" :L3?"ASTS" :L4?"EQR"  :L5?"NTLA" :"ROK"
-string p36=L1?"ADBE" :L2?"DOCN" :L3?"XPEV" :L4?"VTR"  :L5?"EDIT" :"CARR"
-string p37=L1?"PM"   :L2?"GTLB" :L3?"LI"   :L4?"ARE"  :L5?"IONS" :"OTIS"
-string p38=L1?"NEE"  :L2?"MNDY" :L3?"FFIE" :L4?"MAA"  :L5?"ARWR" :"IR"
-string p39=L1?"RTX"  :L2?"GLBE" :L3?"MULN" :L4?"UDR"  :L5?"FATE" :"AME"
-string p40=L1?"LOW"  :L2?"S"    :L3?"WULF" :L4?"PEAK" :L5?"SGEN" :"GNRC"
+string p01=L1?"BINANCE:BTCUSDT" :L2?"BINANCE:AVAXUSDT" :"BINANCE:DOGEUSDT"
+string p02=L1?"BINANCE:ETHUSDT" :L2?"BINANCE:DOTUSDT"  :"BINANCE:SHIBUSDT"
+string p03=L1?"BINANCE:BNBUSDT" :L2?"BINANCE:MATICUSDT":"BINANCE:PEPEUSDT"
+string p04=L1?"BINANCE:SOLUSDT" :L2?"BINANCE:LINKUSDT" :"BINANCE:FLOKIUSDT"
+string p05=L1?"BINANCE:XRPUSDT" :L2?"BINANCE:UNIUSDT"  :"BINANCE:BONKUSDT"
+string p06=L1?"BINANCE:ADAUSDT" :L2?"BINANCE:ATOMUSDT" :"BINANCE:WIFUSDT"
+string p07=L1?"BINANCE:DOGEUSDT":L2?"BINANCE:FTMUSDT"  :"BINANCE:BOMEUSDT"
+string p08=L1?"BINANCE:TRXUSDT" :L2?"BINANCE:NEARUSDT" :"BINANCE:MEMEUSDT"
+string p09=L1?"BINANCE:TONUSDT" :L2?"BINANCE:INJUSDT"  :"BINANCE:TURBOUSDT"
+string p10=L1?"BINANCE:SHIBUSDT":L2?"BINANCE:APTUSDT"  :"BINANCE:PEOPLEUSDT"
+string p11=L1?"BINANCE:AVAXUSDT":L2?"BINANCE:OPUSDT"   :"BINANCE:LUNCUSDT"
+string p12=L1?"BINANCE:DOTUSDT" :L2?"BINANCE:ARBUSDT"  :"BINANCE:LUNAUSDT"
+string p13=L1?"BINANCE:LINKUSDT":L2?"BINANCE:SUIUSDT"  :"BINANCE:BABYDOGEUSDT"
+string p14=L1?"BINANCE:MATICUSDT":L2?"BINANCE:SEIUSDT" :"BINANCE:1000SATSUSDT"
+string p15=L1?"BINANCE:LTCUSDT" :L2?"BINANCE:TIAUSDT"  :"BINANCE:RATSUSDT"
+string p16=L1?"BINANCE:BCHUSDT" :L2?"BINANCE:IMXUSDT"  :"BINANCE:ORDIUSDT"
+string p17=L1?"BINANCE:UNIUSDT" :L2?"BINANCE:RENDERUSDT":"BINANCE:SATSUSDT"
+string p18=L1?"BINANCE:ATOMUSDT":L2?"BINANCE:RUNEUSDT" :"BINANCE:MEWUSDT"
+string p19=L1?"BINANCE:XLMUSDT" :L2?"BINANCE:FETUSDT"  :"BINANCE:CATUSDT"
+string p20=L1?"BINANCE:NEARUSDT":L2?"BINANCE:AGIXUSDT" :"BINANCE:NEIROUSDT"
+string p21=L1?"BINANCE:ICPUSDT" :L2?"BINANCE:GRTUSDT"  :"BINANCE:BRETTUSDT"
+string p22=L1?"BINANCE:APTUSDT" :L2?"BINANCE:SNXUSDT"  :"BINANCE:MOGUSDT"
+string p23=L1?"BINANCE:FILUSDT" :L2?"BINANCE:MKRUSDT"  :"BINANCE:MYROFLOKI"
+string p24=L1?"BINANCE:ETCUSDT" :L2?"BINANCE:AAVEUSDT" :"BINANCE:TOSHIUSDT"
+string p25=L1?"BINANCE:HBARUSDT":L2?"BINANCE:LDOUSDT"  :"BINANCE:LADYSUSDT"
+string p26=L1?"BINANCE:VETUSDT" :L2?"BINANCE:CRVUSDT"  :"BINANCE:BCHUSDT"
+string p27=L1?"BINANCE:ARBUSDT" :L2?"BINANCE:DYDXUSDT" :"BINANCE:JASMYUSDT"
+string p28=L1?"BINANCE:OPUSDT"  :L2?"BINANCE:PENDLEUSDT":"BINANCE:ENJUSDT"
+string p29=L1?"BINANCE:FTMUSDT" :L2?"BINANCE:WLDUSDT"  :"BINANCE:GALAUSDT"
+string p30=L1?"BINANCE:SUIUSDT" :L2?"BINANCE:JUPUSDT"  :"BINANCE:HOTUSDT"
+string p31=L1?"BINANCE:INJUSDT" :L2?"BINANCE:STRKUSDT" :"BINANCE:IOTAUSDT"
+string p32=L1?"BINANCE:SEIUSDT" :L2?"BINANCE:ZETAUSDT" :"BINANCE:CHZUSDT"
+string p33=L1?"BINANCE:TIAUSDT" :L2?"BINANCE:PYTHUSDT" :"BINANCE:CAKEUSDT"
+string p34=L1?"BINANCE:IMXUSDT" :L2?"BINANCE:BTTCUSDT" :"BINANCE:CFXUSDT"
+string p35=L1?"BINANCE:RENDERUSDT":L2?"BINANCE:CKBUSDT":"BINANCE:RVNUSDT"
+string p36=L1?"BINANCE:RUNEUSDT":L2?"BINANCE:CELOUSDT" :"BINANCE:ANKRUSDT"
+string p37=L1?"BINANCE:FETUSDT" :L2?"BINANCE:FLOWUSDT" :"BINANCE:ZILUSDT"
+string p38=L1?"BINANCE:GRTUSDT" :L2?"BINANCE:APEUSDT"  :"BINANCE:DUSKUSDT"
+string p39=L1?"BINANCE:AAVEUSDT":L2?"BINANCE:COMPUSDT" :"BINANCE:SKLUSDT"
+string p40=L1?"BINANCE:MKRUSDT" :L2?"BINANCE:1INCHUSDT":"BINANCE:STXUSDT"
 
 // ─── MERGE: custom overrides preset ─────────────────────────────────────────
 
@@ -185,6 +173,9 @@ getName(string sym) =>
     string result = sym
     if str.contains(sym, ":")
         result := str.substring(sym, str.pos(sym, ":") + 1)
+    // Strip trailing "USDT" for cleaner display
+    if str.endswith(result, "USDT")
+        result := str.substring(result, 0, str.length(result) - 4)
     result
 
 string n01=getName(s01),string n02=getName(s02),string n03=getName(s03),string n04=getName(s04)
@@ -198,8 +189,8 @@ string n29=getName(s29),string n30=getName(s30),string n31=getName(s31),string n
 string n33=getName(s33),string n34=getName(s34),string n35=getName(s35),string n36=getName(s36)
 string n37=getName(s37),string n38=getName(s38),string n39=getName(s39),string n40=getName(s40)
 
-// ─── DATA FETCH: spike ratio + close + change % ────────────────────────────
-// Pine limit is 127 tuple elements. 40 calls × 3 returns = 120. Fits.
+// ─── DATA FETCH ─────────────────────────────────────────────────────────────
+// 40 calls × 3 returns = 120 tuple elements (under 127 limit)
 
 getData3() =>
     float avgVol     = ta.sma(volume, lookback)
@@ -305,7 +296,7 @@ array.set(nameArr,36,n37),array.set(nameArr,37,n38),array.set(nameArr,38,n39),ar
 
 if demoMode
     float[] ds = array.from(14.2,10.5, 8.1,6.8,5.5, 4.7,4.2,3.6,3.3,3.0, 2.7,2.4,2.1,1.9,1.8, 1.6,1.5,1.4,1.3,1.2, 1.1,1.0,0.9,0.8,0.7,0.6,0.9,1.0,0.8,0.7, 0.6,0.5,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2)
-    float[] dp = array.from(187.5,422.3,145.6,98.2,53.4,312.8,76.1,220.5,165.9,88.7, 44.3,155.2,67.8,201.4,130.6,92.1,38.5,175.3,56.2,110.4, 84.7,43.2,198.6,72.3,145.8,63.1,29.4,88.5,112.3,55.7, 167.4,41.8,93.2,78.6,134.5,62.3,47.8,156.9,83.4,39.6)
+    float[] dp = array.from(67432.5,3422.3,312.6,148.2,0.534,0.312,1.76,0.0205,5.89,0.0000288, 44.3,22.52,0.678,1.014,0.306,0.0921,0.385,17.53,0.562,1.104, 8.47,0.432,0.0986,72.3,1.458,0.0631,0.294,0.885,1.123,0.557, 1.674,0.418,0.932,0.786,1.345,0.623,0.478,1.569,0.834,0.396)
     float[] dc = array.from(8.4,-5.1,6.2,-3.9,4.6,-0.1,3.7,-0.1,5.3,-0.2, 2.9,-0.1,3.1,-0.1,1.2,-0.1,0.5,-0.1,0.8,-0.05, 0.3,-0.1,0.1,-0.05,0.07,-0.02,0.09,-0.03,0.01,-0.08, 0.05,-0.01,0.02,-0.07,0.03,-0.09,0.06,-0.01,0.03,-0.05)
     for i = 0 to SIZE - 1
         array.set(spikeArr,i,array.get(ds,i))
@@ -330,9 +321,8 @@ for i = 0 to SIZE - 2
         array.set(idxArr, i, array.get(idxArr, maxPos))
         array.set(idxArr, maxPos, tmp)
 
-// ─── SIGNAL LEVEL FUNCTIONS (6 levels: Orange > Yellow > Green > LtGreen > Blue > Pink) ─
+// ─── SIGNAL LEVEL FUNCTIONS ─────────────────────────────────────────────────
 
-// Level thresholds (spike ratio)
 getLevel(float spike) =>
     spike >= 8.0 ? 1 : spike >= 5.0 ? 2 : spike >= 3.0 ? 3 : spike >= 2.0 ? 4 : spike >= 1.5 ? 5 : spike >= 1.2 ? 6 : 0
 
@@ -346,11 +336,9 @@ getLevelLabel(int level) =>
         1 => "ORANGE", 2 => "YELLOW", 3 => "GREEN", 4 => "LT GRN", 5 => "BLUE", 6 => "PINK"
         => "—"
 
-// Bright vs Dim: bright if |change%| >= priceMoveThr, dim otherwise
 isBright(float changePct) =>
     math.abs(changePct) >= priceMoveThr
 
-// Background color: bright = solid tint, dim = very faded tint
 getSignalBg(int level, bool bright) =>
     color base = getLevelColor(level)
     if level == 0
@@ -358,7 +346,6 @@ getSignalBg(int level, bool bright) =>
     else
         bright ? color.new(base, 75) : color.new(base, 92)
 
-// Text color: bright = full color, dim = faded color
 getSignalTxt(int level, bool bright) =>
     color base = getLevelColor(level)
     if level == 0
@@ -366,41 +353,26 @@ getSignalTxt(int level, bool bright) =>
     else
         bright ? base : color.new(base, 50)
 
-// ─── MARKET HOURS CHECK ─────────────────────────────────────────────────────
+// ─── FORMAT CRYPTO PRICE ────────────────────────────────────────────────────
+// Crypto prices vary wildly ($67000 vs $0.00002). Smart formatting.
 
-isInMarketHours() =>
-    // Get current ET time
-    h = hour(time, "America/New_York")
-    m = minute(time, "America/New_York")
-    mins = h * 60 + m
-    openMins = 9 * 60 + 30   // 9:30 AM
-    closeMins = 16 * 60       // 4:00 PM
-    mins >= openMins and mins < closeMins
-
-isAfterAlertDelay() =>
-    h = hour(time, "America/New_York")
-    m = minute(time, "America/New_York")
-    mins = h * 60 + m
-    openMins = 9 * 60 + 30
-    mins >= (openMins + alertDelayMin)
-
-bool mktOpen   = isInMarketHours()
-bool pastDelay = isAfterAlertDelay()
+formatPrice(float p) =>
+    p >= 1000 ? str.tostring(p, "#.#") : p >= 1 ? str.tostring(p, "#.##") : p >= 0.01 ? str.tostring(p, "#.####") : str.tostring(p, "#.########")
 
 // ─── BUILD TABLE ────────────────────────────────────────────────────────────
 
-var table scannerTbl = table.new(tablePos, 7, tblRows + 1, border_width = tblBorder)
+var table scannerTbl = table.new(tablePos, 6, tblRows + 1, border_width = tblBorder)
 
 if barstate.islast
     // --- Header ---
-    color hdrBg  = color.new(#e0e0e0, 0)
-    color hdrTxt = color.new(#555555, 0)
+    color hdrBg  = color.new(#1a1d2b, 0)
+    color hdrTxt = color.new(#8890a5, 0)
 
     int col = 0
     if showRank
         table.cell(scannerTbl,col,0," # ",       text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_center)
         col += 1
-    table.cell(scannerTbl,col,0," TICKER ",      text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_left)
+    table.cell(scannerTbl,col,0," PAIR ",        text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_left)
     col += 1
     table.cell(scannerTbl,col,0," SPIKE ",       text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_center)
     col += 1
@@ -411,9 +383,6 @@ if barstate.islast
         col += 1
     if showChg
         table.cell(scannerTbl,col,0," CHG% ",    text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_right)
-        col += 1
-    if showVol
-        table.cell(scannerTbl,col,0," VOL ",     text_color=hdrTxt,bgcolor=hdrBg,text_size=txtSize,text_halign=text.align_right)
 
     // --- Data Rows ---
     int rowNum = 0
@@ -430,7 +399,6 @@ if barstate.islast
         int    level  = getLevel(spike)
         bool   bright = isBright(chg)
 
-        // Min volume filter: skip if no signal or filtered
         if not showNorm and level == 0
             continue
 
@@ -438,39 +406,38 @@ if barstate.islast
         color  bgCol  = getSignalBg(level, bright)
         color  sigTxt = getSignalTxt(level, bright)
         string sigLbl = getLevelLabel(level)
-        // Append brightness indicator
         string brightInd = level > 0 ? (bright ? " *" : "") : ""
         color  chgCol = chg >= 0 ? color.new(#00c853,0) : color.new(#ff1744,0)
         string chgSign = chg >= 0 ? "+" : ""
-        color  txtMain = color.new(#1a1a1a, 0)
-        color  txtDim  = color.new(#888888, 0)
+        // Dark theme text for crypto scanner
+        color  txtMain = color.new(#dfe2ea, 0)
+        color  txtDim  = color.new(#555e70, 0)
+
+        // Default bg for no-signal rows in dark theme
+        color  rowBg = level == 0 ? color.new(#131620, 0) : bgCol
 
         int c = 0
         if showRank
-            table.cell(scannerTbl,c,row," "+str.tostring(rowNum+1)+" ",                         text_color=txtDim, bgcolor=bgCol,text_size=txtSize,text_halign=text.align_center)
+            table.cell(scannerTbl,c,row," "+str.tostring(rowNum+1)+" ",                       text_color=txtDim, bgcolor=rowBg,text_size=txtSize,text_halign=text.align_center)
             c += 1
-        table.cell(scannerTbl,c,row," "+name+" ",                                               text_color=txtMain,bgcolor=bgCol,text_size=txtSize,text_halign=text.align_left)
+        table.cell(scannerTbl,c,row," "+name+" ",                                             text_color=txtMain,bgcolor=rowBg,text_size=txtSize,text_halign=text.align_left)
         c += 1
-        table.cell(scannerTbl,c,row," "+str.tostring(spike,"#.#")+"x ",                         text_color=sigTxt, bgcolor=bgCol,text_size=txtSize,text_halign=text.align_center)
+        table.cell(scannerTbl,c,row," "+str.tostring(spike,"#.#")+"x ",                       text_color=sigTxt, bgcolor=rowBg,text_size=txtSize,text_halign=text.align_center)
         c += 1
-        table.cell(scannerTbl,c,row," "+sigLbl+brightInd+" ",                                   text_color=sigTxt, bgcolor=bgCol,text_size=txtSize,text_halign=text.align_center)
+        table.cell(scannerTbl,c,row," "+sigLbl+brightInd+" ",                                 text_color=sigTxt, bgcolor=rowBg,text_size=txtSize,text_halign=text.align_center)
         c += 1
         if showPrice
-            table.cell(scannerTbl,c,row," $"+str.tostring(price,"#.##")+" ",                    text_color=txtMain,bgcolor=bgCol,text_size=txtSize,text_halign=text.align_right)
+            table.cell(scannerTbl,c,row," $"+formatPrice(price)+" ",                          text_color=txtMain,bgcolor=rowBg,text_size=txtSize,text_halign=text.align_right)
             c += 1
         if showChg
-            table.cell(scannerTbl,c,row," "+chgSign+str.tostring(chg,"#.##")+"% ",              text_color=chgCol, bgcolor=bgCol,text_size=txtSize,text_halign=text.align_right)
-            c += 1
-        if showVol
-            table.cell(scannerTbl,c,row," "+str.tostring(spike * 1000,"#")+" ",                 text_color=txtDim, bgcolor=bgCol,text_size=txtSize,text_halign=text.align_right)
+            table.cell(scannerTbl,c,row," "+chgSign+str.tostring(chg,"#.##")+"% ",            text_color=chgCol, bgcolor=rowBg,text_size=txtSize,text_halign=text.align_right)
 
         rowNum += 1
 
 // ─── ALERTS ─────────────────────────────────────────────────────────────────
-// Orange (Level 1) and Yellow (Level 2) are the most noteworthy signals.
-// Alert conditions respect: market hours, delay after open, bright-only filter.
+// No market hours filter for crypto — it trades 24/7.
 
-bool canAlert = alertOn and (not alertMktHours or mktOpen) and (not alertMktHours or pastDelay)
+bool canAlert = alertOn
 
 bool orangeSpike = false
 bool yellowSpike = false
@@ -490,14 +457,9 @@ for i = 0 to SIZE - 1
     if lv >= 1 and lv <= 2 and passFilter
         anyTopSignal := true
 
-// Alert: Orange signals (highest intensity)
-alertcondition(canAlert and orangeSpike, title="ORANGE Signal (Highest)", message="ORANGE volume spike detected! Highest intensity — check scanner immediately.")
-
-// Alert: Yellow signals (very high intensity)
-alertcondition(canAlert and yellowSpike, title="YELLOW Signal (Very High)", message="YELLOW volume spike detected! Very high intensity — likely catalyst/news event.")
-
-// Alert: Any top-2 signal (Orange or Yellow)
-alertcondition(canAlert and anyTopSignal, title="Top Signal (Orange/Yellow)", message="Top-level volume spike detected (Orange or Yellow). Check scanner for details.")
+alertcondition(canAlert and orangeSpike, title="ORANGE Crypto Signal", message="ORANGE crypto volume spike detected! Extreme intensity — check scanner immediately.")
+alertcondition(canAlert and yellowSpike, title="YELLOW Crypto Signal", message="YELLOW crypto volume spike detected! Very high intensity — likely major catalyst.")
+alertcondition(canAlert and anyTopSignal, title="Top Crypto Signal", message="Top-level crypto volume spike detected (Orange or Yellow). Check scanner for details.")
 
 plot(orangeSpike ? 1 : 0, display=display.none, title="Orange Flag")
 plot(yellowSpike ? 1 : 0, display=display.none, title="Yellow Flag")
